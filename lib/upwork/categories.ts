@@ -1,8 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { fetchUpworkWithAuth } from "./token"
-
-const BROWSER_UA =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+import { BROWSER_UA, fetchUpworkWithAuth } from "./token"
 
 const QUERY = `query { ontologyCategories { id preferredLabel slug subcategories { id preferredLabel } } }`
 

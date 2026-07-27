@@ -17,6 +17,44 @@ type ProfileFields = {
   positioning_notes: string
 }
 
+interface EmploymentRecord {
+  companyName?: string | null
+  jobTitle?: string | null
+  startDateTime?: string | null
+  endDateTime?: string | null
+  description?: string | null
+}
+
+interface PortfolioProject {
+  title?: string | null
+  description?: string | null
+  projectUrl?: string | null
+}
+
+function formatDate(raw: string | null | undefined): string {
+  if (!raw) return "Present"
+  const d = new Date(raw)
+  return Number.isNaN(d.getTime()) ? raw : d.toLocaleDateString("en-US", { month: "short", year: "numeric" })
+}
+
+function formatEmploymentRecords(records: EmploymentRecord[] | null | undefined): string | null {
+  if (!records || records.length === 0) return null
+  return records
+    .map((r) => {
+      const header = [r.jobTitle, r.companyName].filter(Boolean).join(" at ")
+      const dates = `${formatDate(r.startDateTime)} - ${formatDate(r.endDateTime)}`
+      return [header, dates, r.description].filter(Boolean).join("\n")
+    })
+    .join("\n\n")
+}
+
+function formatProjects(projects: PortfolioProject[] | null | undefined): string | null {
+  if (!projects || projects.length === 0) return null
+  return projects
+    .map((p) => [p.title, p.projectUrl, p.description].filter(Boolean).join(" — "))
+    .join("\n")
+}
+
 const FIELDS: { key: keyof ProfileFields; label: string; description: string; placeholder: string }[] = [
   {
     key: "summary",
@@ -99,11 +137,16 @@ export default function OnboardingStep3() {
         const res = await fetch("/api/upwork/profile")
         if (res.ok) {
           const data = await res.json()
+          const p = data.profile
           setFields((prev) => ({
             ...prev,
-            summary: data.profile?.description?.overview ?? prev.summary,
-            current_role: data.profile?.title ?? prev.current_role,
-            skills_text: data.profile?.skills?.map((s: { prettyName: string }) => s.prettyName).join(", ") ?? prev.skills_text,
+            summary: p?.personalData?.description ?? prev.summary,
+            current_role: p?.personalData?.title ?? prev.current_role,
+            skills_text:
+              p?.skills?.map((s: { prettyName: string }) => s.prettyName).filter(Boolean).join(", ") ??
+              prev.skills_text,
+            previous_experience: formatEmploymentRecords(p?.employmentRecords) ?? prev.previous_experience,
+            portfolio: formatProjects(p?.projectList?.projects) ?? prev.portfolio,
           }))
         }
       } catch {
@@ -129,14 +172,14 @@ export default function OnboardingStep3() {
     }
     const { error } = await supabase
       .from("user_profiles")
-      .update({ ...fields, onboarding_completed: true })
+      .update(fields)
       .eq("user_id", user.id)
     if (error) {
       setError(error.message)
       setLoading(false)
       return
     }
-    router.push("/dashboard")
+    router.push("/onboarding/step-4")
   }
 
   return (
@@ -175,7 +218,7 @@ export default function OnboardingStep3() {
             onClick={() => handleSave()}
             disabled={loading || prefilling}
           >
-            {loading ? "Saving…" : "Save & go to dashboard"}
+            {loading ? "Saving…" : "Continue"}
           </Button>
           <Button
             variant="ghost"

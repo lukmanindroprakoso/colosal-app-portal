@@ -1,11 +1,19 @@
-import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
-import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
 import { ScannerList, type ScannerItem } from "./scanner-list"
+import { NewScannerButton } from "./new-scanner-button"
 
 export default async function JobScannerPage() {
   const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { data: subscription } = await supabase
+    .from("user_subscriptions")
+    .select("plan")
+    .eq("user_id", user!.id)
+    .maybeSingle()
 
   const { data: configs } = await supabase
     .from("user_scan_config")
@@ -50,16 +58,30 @@ export default async function JobScannerPage() {
     }))
     .sort((a, b) => (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99)) as ScannerItem[]
 
+  const isFreePlan = (subscription?.plan ?? "free") === "free"
+  const activeCount = items.filter((i) => i.status === "Active").length
+  const atLimit = isFreePlan && activeCount >= 2
+
   return (
     <div className="mx-auto max-w-5xl">
       <div className="mb-8 flex items-center justify-between">
         <h1 className="font-heading text-3xl font-semibold">Job Scanner</h1>
-        <Button asChild>
-          <Link href="/job-scanner/new">
-            <Plus /> New Configuration
-          </Link>
-        </Button>
+        <NewScannerButton blocked={atLimit} />
       </div>
+
+      {isFreePlan && (
+        <div className="mb-6 flex items-center justify-between rounded-2xl bg-muted px-4 py-3 text-sm">
+          <span>
+            <strong>{activeCount}/2</strong> active scanners on the free plan
+          </span>
+          <a
+            href="mailto:team@paistudio.dev?subject=Upgrade%20request"
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Contact us to upgrade
+          </a>
+        </div>
+      )}
 
       <ScannerList items={items} />
     </div>

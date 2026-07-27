@@ -1,6 +1,17 @@
 import { createClient } from "@/lib/supabase/server"
-import { fetchUpworkWithAuth } from "@/lib/upwork/token"
+import { BROWSER_UA, fetchUpworkWithAuth } from "@/lib/upwork/token"
 import { NextResponse } from "next/server"
+
+const QUERY = `query {
+  user {
+    talentProfile {
+      personalData { title description }
+      employmentRecords { companyName jobTitle startDateTime endDateTime description }
+      projectList { projects { title description projectUrl } }
+      skills { prettyName }
+    }
+  }
+}`
 
 export async function GET() {
   const supabase = await createClient()
@@ -23,15 +34,22 @@ export async function GET() {
     profile.access_token,
     profile.refresh_token,
     (token) =>
-      fetch("https://www.upwork.com/api/v3/freelancers/me", {
-        headers: { Authorization: `Bearer ${token}` },
+      fetch("https://api.upwork.com/graphql", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "User-Agent": BROWSER_UA,
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ query: QUERY }),
       })
   )
 
-  if (!res.ok) {
+  const json = await res.json().catch(() => null)
+  if (!res.ok || json?.errors) {
     return NextResponse.json({ error: "Failed to fetch Upwork profile" }, { status: 502 })
   }
 
-  const data = await res.json()
-  return NextResponse.json(data)
+  return NextResponse.json({ profile: json?.data?.user?.talentProfile ?? null })
 }
