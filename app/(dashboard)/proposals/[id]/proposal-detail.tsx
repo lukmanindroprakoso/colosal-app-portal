@@ -1,12 +1,22 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import { Copy, Check, ChevronDown, FileText, Globe, ArrowUpRight, ChevronRight } from "lucide-react"
+import {
+  Copy,
+  Check,
+  ChevronDown,
+  FileText,
+  Globe,
+  ArrowUpRight,
+  ChevronRight,
+  Loader2,
+  RefreshCw,
+} from "lucide-react"
 import { PROPOSAL_STATUS_STYLES, formatProposalDateTime } from "../proposal-format"
 
 export interface QAPair {
@@ -76,7 +86,43 @@ function Card({ children }: { children: React.ReactNode }) {
 
 export function ProposalDetail({ data }: { data: ProposalDetailData }) {
   const [detailsOpen, setDetailsOpen] = useState(true)
-  const status = data.is_submitted ? "Submitted" : "Draft"
+  const [detail, setDetail] = useState(data)
+  const [generating, setGenerating] = useState(false)
+
+  async function generateProposal() {
+    setGenerating(true)
+    try {
+      const res = await fetch("/api/ai/generate-proposal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ proposalId: detail.id }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? "Generation failed")
+      setDetail((d) => ({
+        ...d,
+        cover_letter_generated: json.cover_letter_generated,
+        question_answer: json.question_answer,
+        attachments: json.attachments,
+        last_generated_at: json.last_generated_at,
+        connects_used: d.connects_used,
+      }))
+      toast.success("Proposal generated")
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  useEffect(() => {
+    if (detail.cover_letter_generated) return
+    const timer = setTimeout(generateProposal, 0)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const status = detail.is_submitted ? "Submitted" : "Draft"
   const description = data.job?.description ?? null
   const excerpt = description
     ? description.length > 280
@@ -117,8 +163,8 @@ export function ProposalDetail({ data }: { data: ProposalDetailData }) {
               "—"
             )}
           </Field>
-          <Field label="Submitted">{formatProposalDateTime(data.last_generated_at)}</Field>
-          <Field label="Connects">{data.connects_used ?? "—"}</Field>
+          <Field label="Submitted">{formatProposalDateTime(detail.last_generated_at)}</Field>
+          <Field label="Connects">{detail.connects_used ?? "—"}</Field>
           <Field label="Skills">{data.job?.skills.length ? data.job.skills.join(", ") : "—"}</Field>
         </div>
       </Card>
@@ -126,18 +172,30 @@ export function ProposalDetail({ data }: { data: ProposalDetailData }) {
       {/* Cover letter card */}
       <Card>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-heading text-sm font-semibold">Cover letter sent</h2>
-          <CopyButton text={data.cover_letter_generated ?? ""} label="Copy cover letter" />
+          <h2 className="font-heading text-sm font-semibold">Cover letter</h2>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={generateProposal} disabled={generating}>
+              {generating ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+              {detail.cover_letter_generated ? "Regenerate" : "Generate"}
+            </Button>
+            <CopyButton text={detail.cover_letter_generated ?? ""} label="Copy cover letter" />
+          </div>
         </div>
-        <p className="whitespace-pre-wrap text-sm text-muted-foreground">{data.cover_letter_generated || "—"}</p>
+        {generating && !detail.cover_letter_generated ? (
+          <p className="text-sm text-muted-foreground">Generating proposal…</p>
+        ) : (
+          <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+            {detail.cover_letter_generated || "—"}
+          </p>
+        )}
       </Card>
 
       {/* Question answers card */}
-      {data.question_answer.length > 0 ? (
+      {detail.question_answer.length > 0 ? (
         <Card>
-          <h2 className="mb-4 font-heading text-sm font-semibold">Question answers sent</h2>
+          <h2 className="mb-4 font-heading text-sm font-semibold">Question answers</h2>
           <div className="space-y-6">
-            {data.question_answer.map((qa, i) => (
+            {detail.question_answer.map((qa, i) => (
               <div key={i} className="space-y-2">
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-sm italic text-muted-foreground">{qa.question}</p>
@@ -151,11 +209,11 @@ export function ProposalDetail({ data }: { data: ProposalDetailData }) {
       ) : null}
 
       {/* Attachments card */}
-      {data.attachments.length > 0 ? (
+      {detail.attachments.length > 0 ? (
         <Card>
-          <h2 className="mb-4 font-heading text-sm font-semibold">Attachments included</h2>
+          <h2 className="mb-4 font-heading text-sm font-semibold">Attachments recommended</h2>
           <div className="flex flex-wrap gap-2">
-            {data.attachments.map((a) => (
+            {detail.attachments.map((a) => (
               <span
                 key={a.id}
                 className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"

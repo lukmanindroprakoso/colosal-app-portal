@@ -78,7 +78,7 @@ export async function proxy(request: NextRequest) {
       } else if (!profile?.access_token) {
         url.pathname = "/onboarding/step-2"
       } else {
-        url.pathname = "/onboarding/step-3"
+        url.pathname = "/onboarding/step-4"
       }
       return NextResponse.redirect(url)
     }

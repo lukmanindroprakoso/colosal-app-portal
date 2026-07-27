@@ -15,7 +15,7 @@ import { SkillTagInput, type Skill } from "./skill-tag-input"
 
 const STEPS = ["Filters", "Cover Letter", "Questions", "Attachments", "Notifications"] as const
 
-const EXPERIENCE_LEVELS = [
+export const EXPERIENCE_LEVELS = [
   { value: "ENTRY_LEVEL", label: "Entry Level" },
   { value: "INTERMEDIATE", label: "Intermediate" },
   { value: "EXPERT", label: "Expert" },
@@ -95,7 +95,7 @@ const EMPTY_CONFIG: ScanConfig = {
   status: "Active",
 }
 
-function Checkbox({
+export function Checkbox({
   checked,
   onChange,
   label,
@@ -125,7 +125,7 @@ function Checkbox({
   )
 }
 
-function NativeSelect({
+export function NativeSelect({
   value,
   onChange,
   placeholder,
@@ -358,7 +358,17 @@ export function ScannerForm({ initial }: { initial?: ScanConfig }) {
       : await supabase.from("user_scan_config").insert(payload)
 
     if (error) {
-      toast.error(error.message)
+      if (error.message.startsWith("SCAN_LIMIT_REACHED")) {
+        toast.error("Free plan allows up to 2 active scanners", {
+          description: "Upgrade to activate more.",
+          action: {
+            label: "Contact us",
+            onClick: () => window.open("mailto:team@paistudio.dev?subject=Upgrade%20request"),
+          },
+        })
+      } else {
+        toast.error(error.message)
+      }
       setSaving(false)
       return
     }

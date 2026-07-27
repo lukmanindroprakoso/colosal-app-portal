@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Mail, MessageCircle, Pencil } from "lucide-react"
 import { STATUS_STYLES } from "../scanner-format"
+import { StatusToggle } from "./status-toggle"
 
 export interface ScanConfigDetail {
   id: string
@@ -42,7 +43,7 @@ function formatRange(min: number | null, max: number | null, suffix = ""): strin
   if (a && b) return `${a} - ${b}${suffix}`
   if (a) return `${a}+${suffix}`
   if (b) return `Up to ${b}${suffix}`
-  return "—"
+  return ""
 }
 
 function formatDateTime(iso: string | null): string {
@@ -53,20 +54,19 @@ function formatDateTime(iso: string | null): string {
   }).format(new Date(iso))
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Chip({ label, value }: { label: string; value: string }) {
   return (
-    <div className="space-y-3">
-      <h3 className="font-heading text-sm font-semibold text-muted-foreground">{title}</h3>
-      {children}
-    </div>
+    <Badge variant="outline" className="font-normal">
+      <span className="text-muted-foreground">{label}:</span>&nbsp;{value}
+    </Badge>
   )
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium">{value}</span>
+    <div className="flex flex-col gap-2 border-t border-border pt-3.5">
+      <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{title}</span>
+      {children}
     </div>
   )
 }
@@ -76,49 +76,46 @@ export function ConfigSummary({ config }: { config: ScanConfigDetail }) {
     .map((s) => s.preferredLabel ?? s.label)
     .filter((label): label is string => Boolean(label))
 
+  const filterChips: { label: string; value: string }[] = [
+    { label: "Keyword", value: config.keyword ?? "" },
+    { label: "Category", value: config.category ?? "" },
+    { label: "Experience", value: config.experience_level ?? "" },
+    {
+      label: "Contract",
+      value: config.contract_type && config.contract_type.length > 0 ? config.contract_type.join(", ") : "",
+    },
+    { label: "Budget", value: formatRange(config.budget_min, config.budget_max) },
+    { label: "Hourly", value: formatRange(config.hourly_rate_min, config.hourly_rate_max, "/hour") },
+  ].filter((c) => c.value)
+
+const scanFailed = config.scan_result ? /fail|error/i.test(config.scan_result) : false
+
   return (
-    <div className="space-y-6 rounded-3xl bg-card p-5 shadow-sm ring-1 ring-foreground/5 dark:ring-foreground/10">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Badge
-            className={cn("gap-1.5", STATUS_STYLES[config.status] ?? STATUS_STYLES.Inactive)}
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-current" />
-            {config.status}
-          </Badge>
-          <p className="mt-2 truncate font-heading text-lg font-semibold">
-            {config.name ?? "Untitled scanner"}
-          </p>
+    <div className="sticky top-0 flex flex-col gap-4 rounded-3xl bg-card p-5 shadow-sm ring-1 ring-foreground/5 dark:ring-foreground/10">
+      <div className="flex flex-col gap-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <StatusToggle id={config.id} status={config.status} />
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/job-scanner/${config.id}/edit`}>
+              <Pencil /> Edit
+            </Link>
+          </Button>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/job-scanner/${config.id}/edit`}>
-            <Pencil /> Edit
-          </Link>
-        </Button>
+        <p className="font-heading text-lg font-semibold">{config.name ?? "Untitled scanner"}</p>
       </div>
 
-      <div className="space-y-2 rounded-2xl bg-muted/40 p-4">
-        <Row label="Last scan" value={formatDateTime(config.last_scan)} />
-        <Row label="Next scan" value={formatDateTime(config.next_scan)} />
-        {config.scan_result ? <Row label="Last result" value={config.scan_result} /> : null}
-      </div>
+      {filterChips.length > 0 && (
+        <Section title="Filters">
+          <div className="flex flex-wrap gap-1.5">
+            {filterChips.map((c) => (
+              <Chip key={c.label} label={c.label} value={c.value} />
+            ))}
+          </div>
+        </Section>
+      )}
 
-      <Section title="Filters Configuration">
-        <div className="space-y-2">
-          <Row label="Budget" value={formatRange(config.budget_min, config.budget_max)} />
-          <Row
-            label="Hourly Rate"
-            value={formatRange(config.hourly_rate_min, config.hourly_rate_max, "/hour")}
-          />
-          <Row label="Keyword" value={config.keyword || "—"} />
-          <Row label="Category" value={config.category || "—"} />
-          <Row label="Experience Level" value={config.experience_level || "—"} />
-          <Row
-            label="Contract Type"
-            value={config.contract_type && config.contract_type.length > 0 ? config.contract_type.join(", ") : "—"}
-          />
-        </div>
-        {skillLabels.length > 0 ? (
+      {skillLabels.length > 0 && (
+        <Section title="Skills">
           <div className="flex flex-wrap gap-1.5">
             {skillLabels.map((label) => (
               <Badge key={label} variant="outline">
@@ -126,22 +123,35 @@ export function ConfigSummary({ config }: { config: ScanConfigDetail }) {
               </Badge>
             ))}
           </div>
-        ) : null}
+        </Section>
+      )}
+
+      <Section title="Schedule">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Chip label="Last scan" value={formatDateTime(config.last_scan)} />
+          {config.scan_result ? (
+            <Badge className={cn("gap-1.5", scanFailed ? STATUS_STYLES.Failed : STATUS_STYLES.Active)}>
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+              {config.scan_result}
+            </Badge>
+          ) : null}
+          <Chip label="Next scan" value={formatDateTime(config.next_scan)} />
+        </div>
       </Section>
 
-      <Section title="Notification">
-        <div className="space-y-2">
-          <div className={cn("flex items-center gap-2 text-sm", !config.notif_email && "opacity-50")}>
-            <Mail className="h-4 w-4" />
-            <span className="flex-1 truncate">{config.email || "No email set"}</span>
-            <Badge variant={config.notif_email ? "default" : "outline"}>
+      <Section title="Notifications">
+        <div className="flex flex-col gap-2">
+          <div className={cn("flex items-center gap-1.5 text-sm", !config.notif_email && "opacity-50")}>
+            <Mail className="h-4 w-4 shrink-0" />
+            <span className="truncate">{config.email || "No email set"}</span>
+            <Badge variant={config.notif_email ? "default" : "outline"} className="ml-auto shrink-0">
               {config.notif_email ? "On" : "Off"}
             </Badge>
           </div>
-          <div className={cn("flex items-center gap-2 text-sm", !config.notif_whatsapp && "opacity-50")}>
-            <MessageCircle className="h-4 w-4" />
-            <span className="flex-1 truncate">{config.whatsapp || "No number set"}</span>
-            <Badge variant={config.notif_whatsapp ? "default" : "outline"}>
+          <div className={cn("flex items-center gap-1.5 text-sm", !config.notif_whatsapp && "opacity-50")}>
+            <MessageCircle className="h-4 w-4 shrink-0" />
+            <span className="truncate">{config.whatsapp || "No number set"}</span>
+            <Badge variant={config.notif_whatsapp ? "default" : "outline"} className="ml-auto shrink-0">
               {config.notif_whatsapp ? "On" : "Off"}
             </Badge>
           </div>

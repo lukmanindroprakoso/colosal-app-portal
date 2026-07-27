@@ -6,6 +6,7 @@ import { fetchUpworkCategories } from "@/lib/upwork/categories"
 import { Button } from "@/components/ui/button"
 import { ConfigSummary, type ScanConfigDetail } from "./config-summary"
 import { JobList, JobListTabs, type ApplyStatusTab, type JobRow } from "./job-list"
+import { ScanChart, type DailyCount } from "./scan-chart"
 
 const PAGE_SIZE = 20
 const TABS: ApplyStatusTab[] = ["All", "New", "Applied", "Dismissed"]
@@ -90,6 +91,27 @@ export default async function ScannerDetailPage({
     Dismissed: dismissedCount.count ?? 0,
   }
 
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
+  sevenDaysAgo.setHours(0, 0, 0, 0)
+  const { data: recentJobs } = await supabase
+    .from("upwork_jobs")
+    .select("inserted_at")
+    .eq("scan_config_id", id)
+    .gte("inserted_at", sevenDaysAgo.toISOString())
+
+  const dailyCounts: DailyCount[] = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(sevenDaysAgo)
+    d.setDate(d.getDate() + i)
+    const date = d.toISOString().slice(0, 10)
+    return { date, label: d.toLocaleDateString("en-US", { weekday: "short" }), count: 0 }
+  })
+  for (const job of recentJobs ?? []) {
+    const date = job.inserted_at.slice(0, 10)
+    const bucket = dailyCounts.find((d) => d.date === date)
+    if (bucket) bucket.count += 1
+  }
+
   const totalPages = Math.max(1, Math.ceil(counts[activeTab] / PAGE_SIZE))
   const clampedPage = Math.min(page, totalPages)
 
@@ -131,31 +153,25 @@ export default async function ScannerDetailPage({
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="mx-auto w-full max-w-6xl shrink-0 pb-4">
-        <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit gap-1">
-          <Link href="/job-scanner">
-            <ArrowLeft className="h-4 w-4" /> Back to Job Scanner
-          </Link>
-        </Button>
-        <h1 className="mb-2 font-heading text-3xl font-semibold">Scanner Detail</h1>
-        <JobListTabs scanConfigId={id} counts={counts} activeTab={activeTab} />
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 gap-6 pb-6 lg:grid-cols-[340px_1fr]">
-            <div className="lg:sticky lg:top-0 lg:self-start">
-              <ConfigSummary config={configDetail} />
-            </div>
-            <JobList
-              scanConfigId={id}
-              jobs={(jobRows ?? []) as JobRow[]}
-              activeTab={activeTab}
-              page={clampedPage}
-              pageSize={PAGE_SIZE}
-              activeTabTotal={counts[activeTab]}
-            />
-          </div>
+    <div className="space-y-6 pb-6">
+      <Button asChild variant="ghost" size="sm" className="-ml-2 w-fit gap-1">
+        <Link href="/job-scanner">
+          <ArrowLeft className="h-4 w-4" /> Back to Job Scanner
+        </Link>
+      </Button>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[340px_1fr] lg:items-start">
+        <ConfigSummary config={configDetail} />
+        <div className="flex min-w-0 flex-col gap-4">
+          <ScanChart days={dailyCounts} />
+          <JobListTabs scanConfigId={id} counts={counts} activeTab={activeTab} />
+          <JobList
+            scanConfigId={id}
+            jobs={(jobRows ?? []) as JobRow[]}
+            activeTab={activeTab}
+            page={clampedPage}
+            pageSize={PAGE_SIZE}
+            activeTabTotal={counts[activeTab]}
+          />
         </div>
       </div>
     </div>

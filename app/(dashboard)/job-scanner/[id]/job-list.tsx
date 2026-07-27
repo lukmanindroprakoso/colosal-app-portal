@@ -115,7 +115,7 @@ export function JobList({
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const totalPages = Math.max(1, Math.ceil(activeTabTotal / pageSize))
 
-  async function updateStatus(jobId: string, status: "Applied" | "Dismissed") {
+  async function updateStatus(jobId: string, status: "Dismissed") {
     setUpdatingId(jobId)
     const supabase = createClient()
     const { error } = await supabase.from("upwork_jobs").update({ apply_status: status }).eq("id", jobId)
@@ -124,9 +124,25 @@ export function JobList({
       setUpdatingId(null)
       return
     }
-    toast.success(status === "Applied" ? "Marked as applied" : "Job dismissed")
+    toast.success("Job dismissed")
     setUpdatingId(null)
     router.refresh()
+  }
+
+  async function applyToJob(jobId: string) {
+    setUpdatingId(jobId)
+    const res = await fetch("/api/proposals/apply", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jobId }),
+    })
+    const json = await res.json().catch(() => null)
+    if (!res.ok) {
+      toast.error(json?.error ?? "Failed to apply")
+      setUpdatingId(null)
+      return
+    }
+    router.push(`/proposals/${json.proposalId}`)
   }
 
   return (
@@ -145,7 +161,7 @@ export function JobList({
             return (
               <div
                 key={job.id}
-                className="flex max-w-3xl items-center gap-4 rounded-3xl bg-card p-4 shadow-sm ring-1 ring-foreground/5 dark:ring-foreground/10"
+                className="flex items-center gap-4 rounded-3xl bg-card p-4 shadow-sm ring-1 ring-foreground/5 dark:ring-foreground/10"
               >
                 {job.score_matching !== null ? (
                   <div
@@ -195,7 +211,7 @@ export function JobList({
                     variant="outline"
                     size="sm"
                     disabled={isUpdating || job.apply_status === "Applied"}
-                    onClick={() => updateStatus(job.id, "Applied")}
+                    onClick={() => applyToJob(job.id)}
                     className="text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600"
                   >
                     {isUpdating ? <Loader2 className="animate-spin" /> : "Apply"}

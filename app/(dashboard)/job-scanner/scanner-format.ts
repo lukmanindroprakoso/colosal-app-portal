@@ -14,4 +14,5 @@ export const STATUS_STYLES: Record<string, string> = {
   Active: "bg-emerald-500/10 text-emerald-500",
   Inactive: "bg-muted text-muted-foreground",
   Draft: "bg-amber-500/10 text-amber-500",
+  Failed: "bg-rose-500/10 text-rose-500",
 }
