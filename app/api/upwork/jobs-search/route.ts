@@ -19,6 +19,15 @@ const QUERY = `query marketplaceJobPostingsSearch(
         title
         description
         ciphertext
+        createdDateTime
+        experienceLevel
+        amount { rawValue }
+        hourlyBudgetMin { rawValue }
+        hourlyBudgetMax { rawValue }
+        skills { name prettyName }
+        classification {
+          subCategory { id }
+        }
         job {
           contractorSelection {
             proposalRequirement {
@@ -38,7 +47,9 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const keyword = new URL(request.url).searchParams.get("keyword")?.trim()
+  const params = new URL(request.url).searchParams
+  const keyword = params.get("keyword")?.trim()
+  const all = params.get("all") === "1"
   if (!keyword) return NextResponse.json({ jobs: [] })
 
   const { data: profile } = await supabase
@@ -85,7 +96,41 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Failed to search jobs" }, { status: 502 })
   }
 
-  const edges = json?.data?.marketplaceJobPostingsSearch?.edges ?? []
+  const result = json?.data?.marketplaceJobPostingsSearch
+  const edges = result?.edges ?? []
+
+  if (all) {
+    const num = (v: unknown) => (v == null || v === "" ? null : Number(v))
+    const jobs = edges.map((e: any) => {
+      const n = e.node
+      const hourlyMin = num(n.hourlyBudgetMin?.rawValue)
+      const hourlyMax = num(n.hourlyBudgetMax?.rawValue)
+      const amount = num(n.amount?.rawValue)
+      const contractType =
+        hourlyMin != null || hourlyMax != null
+          ? "HOURLY"
+          : amount != null && amount > 0
+            ? "FIXED"
+            : null
+      return {
+        id: n.ciphertext,
+        title: n.title,
+        description: n.description,
+        createdAt: n.createdDateTime ?? null,
+        contractType,
+        amount,
+        hourlyMin,
+        hourlyMax,
+        experienceLevel: n.experienceLevel ?? null,
+        category: n.classification?.subCategory?.id ?? null,
+        skills: (n.skills ?? [])
+          .map((s: any) => s.prettyName ?? s.name)
+          .filter(Boolean),
+      }
+    })
+    return NextResponse.json({ jobs, totalCount: result?.totalCount ?? jobs.length })
+  }
+
   const jobs = edges
     .filter(
       (e: any) =>
