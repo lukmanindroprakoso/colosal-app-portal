@@ -1,7 +1,18 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Loader2, Search } from "lucide-react"
+import { toast } from "sonner"
+import { createClient } from "@/lib/supabase/client"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -35,6 +46,8 @@ function money(j: SearchJob): string | null {
 
 export function SearchJobClient({
   skillsText,
+  email,
+  phone,
 }: {
   skillsText: string | null
   email: string
@@ -48,6 +61,48 @@ export function SearchJobClient({
   const [filters, setFilters] = useState<JobFilters>(EMPTY_FILTERS)
   const [sort, setSort] = useState<"match" | "newest">("match")
   const [categories, setCategories] = useState<UpworkCategory[]>([])
+
+  const router = useRouter()
+  const [saveOpen, setSaveOpen] = useState(false)
+  const [saveName, setSaveName] = useState("")
+  const [saving, setSaving] = useState(false)
+
+  async function saveScanner() {
+    const name = saveName.trim()
+    if (!name || saving) return
+    setSaving(true)
+    const supabase = createClient()
+    const { data: userData } = await supabase.auth.getUser()
+    if (!userData.user) {
+      router.push("/login")
+      return
+    }
+    const { data, error } = await supabase
+      .from("user_scan_config")
+      .insert({
+        user_id: userData.user.id,
+        name,
+        keyword,
+        contract_type: filters.contractType.length ? filters.contractType : null,
+        budget_min: filters.budgetMin,
+        budget_max: filters.budgetMax,
+        hourly_rate_min: filters.hourlyMin,
+        hourly_rate_max: filters.hourlyMax,
+        experience_level: filters.experience || null,
+        category: filters.category || null,
+        email: email || null,
+        whatsapp: phone || null,
+        status: "Draft",
+      })
+      .select("id")
+      .single()
+    if (error || !data) {
+      setSaving(false)
+      toast.error(error?.message ?? "Failed to save scanner")
+      return
+    }
+    router.push(`/job-scanner/${data.id}/edit`)
+  }
 
   const userSkills = useMemo(() => parseSkills(skillsText), [skillsText])
 
@@ -201,7 +256,9 @@ export function SearchJobClient({
                   { value: "newest", label: "Newest" },
                 ]}
               />
-              {/* Save as scanner button added in Task 5 */}
+              <Button onClick={() => { setSaveName(keyword); setSaveOpen(true) }}>
+                Save as scanner
+              </Button>
             </div>
           </div>
 
@@ -236,6 +293,30 @@ export function SearchJobClient({
           ))}
         </section>
       </div>
+      <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save as scanner</DialogTitle>
+            <DialogDescription>
+              Saves &ldquo;{keyword}&rdquo; and your current filters as a draft scanner. You
+              will add the cover letter and other settings next.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            placeholder="Scanner name"
+            value={saveName}
+            onChange={(e) => setSaveName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && saveScanner()}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveOpen(false)}>Cancel</Button>
+            <Button onClick={saveScanner} disabled={saving || !saveName.trim()}>
+              {saving && <Loader2 className="animate-spin" />} Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
