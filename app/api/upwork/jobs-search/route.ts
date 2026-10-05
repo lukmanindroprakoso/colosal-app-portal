@@ -5,7 +5,18 @@ import { NextResponse } from "next/server"
 const BROWSER_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-const QUERY = `query marketplaceJobPostingsSearch(
+const RICH_FIELDS = `
+        createdDateTime
+        experienceLevel
+        amount { rawValue }
+        hourlyBudgetMin { rawValue }
+        hourlyBudgetMax { rawValue }
+        skills { name prettyName }
+        classification {
+          subCategory { id }
+        }`
+
+const buildQuery = (all: boolean) => `query marketplaceJobPostingsSearch(
   $marketPlaceJobFilter: MarketplaceJobPostingsSearchFilter,
   $sortAttributes: [MarketplaceJobPostingSearchSortAttribute]
 ) {
@@ -18,16 +29,7 @@ const QUERY = `query marketplaceJobPostingsSearch(
       node {
         title
         description
-        ciphertext
-        createdDateTime
-        experienceLevel
-        amount { rawValue }
-        hourlyBudgetMin { rawValue }
-        hourlyBudgetMax { rawValue }
-        skills { name prettyName }
-        classification {
-          subCategory { id }
-        }
+        ciphertext${all ? RICH_FIELDS : ""}
         job {
           contractorSelection {
             proposalRequirement {
@@ -77,7 +79,7 @@ export async function GET(request: Request) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          query: QUERY,
+          query: buildQuery(all),
           variables: {
             marketPlaceJobFilter: {
               searchExpression_eq: keyword,
@@ -101,13 +103,13 @@ export async function GET(request: Request) {
 
   if (all) {
     const num = (v: unknown) => (v == null || v === "" ? null : Number(v))
-    const jobs = edges.map((e: any) => {
+    const jobs = edges.filter((e: any) => e?.node).map((e: any) => {
       const n = e.node
       const hourlyMin = num(n.hourlyBudgetMin?.rawValue)
       const hourlyMax = num(n.hourlyBudgetMax?.rawValue)
       const amount = num(n.amount?.rawValue)
       const contractType =
-        hourlyMin != null || hourlyMax != null
+        (hourlyMin ?? 0) > 0 || (hourlyMax ?? 0) > 0
           ? "HOURLY"
           : amount != null && amount > 0
             ? "FIXED"

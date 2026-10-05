@@ -77,13 +77,20 @@ export function SearchJobClient({
       router.push("/login")
       return
     }
+    const contractTypes = [
+      ...new Set([
+        ...filters.contractType,
+        ...(filters.hourlyMin != null || filters.hourlyMax != null ? ["HOURLY"] : []),
+        ...(filters.budgetMin != null || filters.budgetMax != null ? ["FIXED"] : []),
+      ]),
+    ]
     const { data, error } = await supabase
       .from("user_scan_config")
       .insert({
         user_id: userData.user.id,
         name,
         keyword,
-        contract_type: filters.contractType.length ? filters.contractType : null,
+        contract_type: contractTypes.length ? contractTypes : null,
         budget_min: filters.budgetMin,
         budget_max: filters.budgetMax,
         hourly_rate_min: filters.hourlyMin,
@@ -133,6 +140,8 @@ export function SearchJobClient({
       setJobs(json?.jobs ?? [])
       setKeyword(k)
       setFilters(EMPTY_FILTERS)
+    } catch {
+      setError("Search failed. Try again.")
     } finally {
       setLoading(false)
     }
@@ -298,8 +307,8 @@ export function SearchJobClient({
           <DialogHeader>
             <DialogTitle>Save as scanner</DialogTitle>
             <DialogDescription>
-              Saves &ldquo;{keyword}&rdquo; and your current filters as a draft scanner. You
-              will add the cover letter and other settings next.
+              Saves &ldquo;{keyword}&rdquo; and your current filters, except the skill filter, as a draft
+              scanner. You will add the cover letter and other settings next.
             </DialogDescription>
           </DialogHeader>
           <Input
