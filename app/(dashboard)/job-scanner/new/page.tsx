@@ -25,20 +25,19 @@ export default async function NewScannerPage() {
     redirect("/job-scanner")
   }
 
-  let phone: string | null = null
-  if (user) {
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("phone")
-      .eq("user_id", user.id)
-      .single()
-    phone = profile?.phone ?? null
-  }
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("phone, telegram_chat_id")
+    .eq("user_id", user!.id)
+    .single()
+  const phone = profile?.phone ?? null
 
   const initial: Partial<ScanConfig> = {
     email: user?.email ?? "",
     whatsapp: phone ?? "",
   }
 
-  return <ScannerForm initial={initial as ScanConfig} />
+  return (
+    <ScannerForm initial={initial as ScanConfig} telegramConnected={Boolean(profile?.telegram_chat_id)} />
+  )
 }

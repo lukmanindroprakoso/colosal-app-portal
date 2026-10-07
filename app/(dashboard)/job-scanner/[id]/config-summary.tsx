@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { Mail, MessageCircle, Pencil } from "lucide-react"
+import { Mail, MessageCircle, Pencil, Send } from "lucide-react"
 import { STATUS_STYLES } from "../scanner-format"
 import { StatusToggle } from "./status-toggle"
 
@@ -26,6 +26,7 @@ export interface ScanConfigDetail {
   email: string | null
   notif_whatsapp: boolean
   whatsapp: string | null
+  notif_telegram: boolean
 }
 
 function formatCurrency(n: number | null): string | null {
@@ -153,6 +154,13 @@ const scanFailed = config.scan_result ? /fail|error/i.test(config.scan_result) :
             <span className="truncate">{config.whatsapp || "No number set"}</span>
             <Badge variant={config.notif_whatsapp ? "default" : "outline"} className="ml-auto shrink-0">
               {config.notif_whatsapp ? "On" : "Off"}
+            </Badge>
+          </div>
+          <div className={cn("flex items-center gap-1.5 text-sm", !config.notif_telegram && "opacity-50")}>
+            <Send className="h-4 w-4 shrink-0" />
+            <span className="truncate">Telegram</span>
+            <Badge variant={config.notif_telegram ? "default" : "outline"} className="ml-auto shrink-0">
+              {config.notif_telegram ? "On" : "Off"}
             </Badge>
           </div>
         </div>

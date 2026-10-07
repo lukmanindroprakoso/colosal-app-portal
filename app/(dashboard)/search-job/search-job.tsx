@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Search } from "lucide-react"
+import { ChevronDown, Loader2, Search } from "lucide-react"
 import { toast } from "sonner"
 import { createClient } from "@/lib/supabase/client"
 import {
@@ -35,6 +35,16 @@ interface UpworkCategory {
   subcategories: { id: string; preferredLabel: string }[]
 }
 
+// NativeSelect with a custom chevron inset from the edge; width comes from className
+function SelectBox({ className, ...props }: React.ComponentProps<typeof NativeSelect> & { className?: string }) {
+  return (
+    <div className={cn("relative [&_select]:appearance-none [&_select]:pr-9", className)}>
+      <NativeSelect {...props} />
+      <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+    </div>
+  )
+}
+
 const num = (v: string) => (v ? Number(v) : null)
 
 function money(j: SearchJob): string | null {
@@ -48,16 +58,22 @@ export function SearchJobClient({
   skillsText,
   email,
   phone,
+  initialKeyword = "",
+  initialJobs = null,
+  initialError = null,
 }: {
   skillsText: string | null
   email: string
   phone: string
+  initialKeyword?: string
+  initialJobs?: SearchJob[] | null
+  initialError?: string | null
 }) {
-  const [input, setInput] = useState("")
-  const [keyword, setKeyword] = useState("") // keyword of the last completed search
-  const [jobs, setJobs] = useState<SearchJob[] | null>(null)
+  const [input, setInput] = useState(initialKeyword)
+  const [keyword, setKeyword] = useState(initialJobs ? initialKeyword : "") // keyword of the last completed search
+  const [jobs, setJobs] = useState<SearchJob[] | null>(initialJobs)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(initialError)
   const [filters, setFilters] = useState<JobFilters>(EMPTY_FILTERS)
   const [sort, setSort] = useState<"match" | "newest">("match")
   const [categories, setCategories] = useState<UpworkCategory[]>([])
@@ -120,9 +136,8 @@ export function SearchJobClient({
       .catch(() => {})
   }, [])
 
-  async function search(e: React.FormEvent) {
-    e.preventDefault()
-    const k = input.trim()
+  async function runSearch(raw: string) {
+    const k = raw.trim()
     if (!k) return
     setLoading(true)
     setError(null)
@@ -145,6 +160,11 @@ export function SearchJobClient({
     } finally {
       setLoading(false)
     }
+  }
+
+  function search(e: React.FormEvent) {
+    e.preventDefault()
+    runSearch(input)
   }
 
   const set = <K extends keyof JobFilters>(key: K, v: JobFilters[K]) =>
@@ -223,21 +243,21 @@ export function SearchJobClient({
           </div>
           <div className="space-y-2">
             <Label>Experience level</Label>
-            <NativeSelect
+            <SelectBox
               value={filters.experience}
-              onChange={(v) => set("experience", v)}
+              onChange={(v) => set("experience", v || null)}
               placeholder="Any"
-              options={EXPERIENCE_LEVELS}
+              options={[{ value: "", label: "Any" }, ...EXPERIENCE_LEVELS]}
             />
           </div>
           {hasCategoryData && (
             <div className="space-y-2">
               <Label>Category</Label>
-              <NativeSelect
+              <SelectBox
                 value={filters.category}
-                onChange={(v) => set("category", v)}
+                onChange={(v) => set("category", v || null)}
                 placeholder="Any"
-                options={categoryOptions}
+                options={[{ value: "", label: "Any" }, ...categoryOptions]}
               />
             </div>
           )}
@@ -252,23 +272,24 @@ export function SearchJobClient({
 
         <section className="min-w-0 flex-1 space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-muted-foreground">
-              {visible.length} of {jobs.length} jobs for &ldquo;{keyword}&rdquo;
-            </p>
-            <div className="flex items-center gap-2">
-              <NativeSelect
-                value={sort}
-                onChange={(v) => setSort(v as "match" | "newest")}
-                placeholder="Sort"
-                options={[
-                  { value: "match", label: "Best match" },
-                  { value: "newest", label: "Newest" },
-                ]}
-              />
-              <Button onClick={() => { setSaveName(keyword); setSaveOpen(true) }}>
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-muted-foreground">
+                {visible.length} of {jobs.length} jobs for &ldquo;{keyword}&rdquo;
+              </p>
+              <Button size="sm" onClick={() => { setSaveName(keyword); setSaveOpen(true) }}>
                 Save as scanner
               </Button>
             </div>
+            <SelectBox
+              className="w-40"
+              value={sort}
+              onChange={(v) => setSort(v as "match" | "newest")}
+              placeholder="Sort"
+              options={[
+                { value: "match", label: "Best match" },
+                { value: "newest", label: "Newest" },
+              ]}
+            />
           </div>
 
           {visible.length === 0 && (

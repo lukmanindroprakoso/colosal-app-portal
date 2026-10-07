@@ -12,8 +12,8 @@ const NAV_SECTIONS = [
     label: "WORKSPACE",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/job-scanner", label: "Job Scanner", icon: Radar },
       { href: "/search-job", label: "Search Job", icon: Search },
+      { href: "/job-scanner", label: "Job Scanner", icon: Radar },
       { href: "/proposals", label: "Proposals", icon: TrendingUp },
     ],
   },

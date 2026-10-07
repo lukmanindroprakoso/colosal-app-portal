@@ -150,6 +150,7 @@ export default async function ScannerDetailPage({
     email: config.email,
     notif_whatsapp: config.notif_whatsapp ?? false,
     whatsapp: config.whatsapp,
+    notif_telegram: config.notif_telegram ?? false,
   }
 
   return (

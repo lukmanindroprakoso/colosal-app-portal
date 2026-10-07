@@ -29,6 +29,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 NEXT_PUBLIC_SITE_URL=
 UPWORK_CLIENT_ID=
 UPWORK_CLIENT_SECRET=
+NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=   # optional; Settings "Connect" for Telegram is disabled until set
 ```
 
 ## Architecture
