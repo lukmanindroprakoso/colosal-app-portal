@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Settings, TrendingUp, Radar, PanelLeftClose, PanelLeftOpen } from "lucide-react"
+import { LayoutDashboard, Settings, TrendingUp, Radar, Search, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/logo"
 
@@ -12,6 +12,7 @@ const NAV_SECTIONS = [
     label: "WORKSPACE",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/search-job", label: "Search Job", icon: Search },
       { href: "/job-scanner", label: "Job Scanner", icon: Radar },
       { href: "/proposals", label: "Proposals", icon: TrendingUp },
     ],

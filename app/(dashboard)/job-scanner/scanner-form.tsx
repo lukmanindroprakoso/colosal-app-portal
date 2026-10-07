@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
@@ -43,6 +44,7 @@ export interface ScanConfig {
   email: string | null
   notif_whatsapp: boolean
   whatsapp: string | null
+  notif_telegram: boolean
   status: string
 }
 
@@ -92,6 +94,7 @@ const EMPTY_CONFIG: ScanConfig = {
   email: "",
   notif_whatsapp: false,
   whatsapp: "",
+  notif_telegram: false,
   status: "Active",
 }
 
@@ -142,7 +145,7 @@ export function NativeSelect({
       onChange={(e) => onChange(e.target.value)}
       className="h-9 w-full rounded-3xl border border-transparent bg-input/50 px-3 text-sm text-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
     >
-      <option value="" disabled className="bg-popover text-muted-foreground">
+      <option value="" disabled hidden className="bg-popover text-muted-foreground">
         {placeholder}
       </option>
       {options.map((o) => (
@@ -154,7 +157,13 @@ export function NativeSelect({
   )
 }
 
-export function ScannerForm({ initial }: { initial?: ScanConfig }) {
+export function ScannerForm({
+  initial,
+  telegramConnected = false,
+}: {
+  initial?: ScanConfig
+  telegramConnected?: boolean
+}) {
   const router = useRouter()
   const supabase = createClient()
   const isEdit = Boolean(initial?.id)
@@ -350,6 +359,7 @@ export function ScannerForm({ initial }: { initial?: ScanConfig }) {
       email: config.email || null,
       notif_whatsapp: config.notif_whatsapp,
       whatsapp: config.whatsapp || null,
+      notif_telegram: config.notif_telegram,
       status: asDraft ? "Draft" : "Active",
     }
 
@@ -766,7 +776,7 @@ export function ScannerForm({ initial }: { initial?: ScanConfig }) {
           <div className="space-y-5">
             <h2 className="font-heading text-lg font-medium">Notifications</h2>
             <p className="text-sm text-muted-foreground">
-              Get notified when this scanner finds new matching jobs.
+              Receive a digest of new matching jobs from this scanner.
             </p>
 
             <div className="space-y-3">
@@ -801,6 +811,21 @@ export function ScannerForm({ initial }: { initial?: ScanConfig }) {
                     onChange={(e) => set("whatsapp", e.target.value)}
                   />
                 </div>
+              )}
+
+              <Checkbox
+                checked={config.notif_telegram}
+                onChange={(v) => set("notif_telegram", v)}
+                label="Telegram notifications"
+              />
+              {config.notif_telegram && !telegramConnected && (
+                <p className="pl-7 text-sm text-muted-foreground">
+                  Telegram is not connected yet.{" "}
+                  <Link href="/settings" className="underline">
+                    Connect it in Settings
+                  </Link>
+                  .
+                </p>
               )}
             </div>
           </div>

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
+import { Send } from "lucide-react"
 
 type Profile = {
   username: string
@@ -21,6 +22,7 @@ type Profile = {
   positioning_notes: string
   access_token: string | null
   last_used: string | null
+  telegram_chat_id: string | null
 }
 
 const PROFILE_FIELDS: { key: keyof Profile; label: string; description: string; multiline?: boolean }[] = [
@@ -38,7 +40,7 @@ export default function SettingsPage() {
     username: "", phone: "",
     summary: "", current_role: "", previous_experience: "",
     skills_text: "", portfolio: "", key_proof_points: "", positioning_notes: "",
-    access_token: null, last_used: null,
+    access_token: null, last_used: null, telegram_chat_id: null,
   })
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(true)
@@ -52,13 +54,30 @@ export default function SettingsPage() {
       setEmail(user.email ?? "")
       const { data } = await supabase
         .from("user_profiles")
-        .select("username, phone, summary, current_role, previous_experience, skills_text, portfolio, key_proof_points, positioning_notes, access_token, last_used")
+        .select("username, phone, summary, current_role, previous_experience, skills_text, portfolio, key_proof_points, positioning_notes, access_token, last_used, telegram_chat_id")
         .eq("user_id", user.id)
         .single()
       if (data) setProfile(data as Profile)
       setLoading(false)
     }
     load()
+  }, [])
+
+  // After tapping Start in Telegram the bot links the chat; pick it up when the tab regains focus.
+  useEffect(() => {
+    async function refreshTelegram() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("telegram_chat_id")
+        .eq("user_id", user.id)
+        .single()
+      if (data) setProfile((prev) => ({ ...prev, telegram_chat_id: data.telegram_chat_id }))
+    }
+    window.addEventListener("focus", refreshTelegram)
+    return () => window.removeEventListener("focus", refreshTelegram)
   }, [])
 
   function update(key: keyof Profile, value: string) {
@@ -104,6 +123,37 @@ export default function SettingsPage() {
     toast.success("Upwork disconnected")
   }
 
+  const telegramBot = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME
+
+  async function handleConnectTelegram() {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    // One-time token: the n8n bot matches it on /start <token>, saves the chat id and clears it.
+    const token = crypto.randomUUID()
+    const { error } = await supabase
+      .from("user_profiles")
+      .update({ telegram_link_token: token })
+      .eq("user_id", user.id)
+    if (error) {
+      toast.error("Failed to start Telegram connection")
+      return
+    }
+    window.open(`https://t.me/${telegramBot}?start=${token}`, "_blank", "noopener")
+  }
+
+  async function handleDisconnectTelegram() {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase
+      .from("user_profiles")
+      .update({ telegram_chat_id: null, telegram_link_token: null })
+      .eq("user_id", user.id)
+    setProfile((prev) => ({ ...prev, telegram_chat_id: null }))
+    toast.success("Telegram disconnected")
+  }
+
   const upworkOAuthUrl =
     `https://www.upwork.com/ab/account-security/oauth2/authorize` +
     `?response_type=code` +
@@ -147,6 +197,31 @@ export default function SettingsPage() {
             onChange={(e) => update("phone", e.target.value)}
             placeholder="+1 555 000 0000"
           />
+        </div>
+        <div className="space-y-1">
+          <Label>Telegram</Label>
+          <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+            <div className="flex items-center gap-2 text-sm">
+              <Send className="h-4 w-4 text-[#26A5E4]" aria-hidden="true" />
+              {profile.telegram_chat_id
+                ? "Connected"
+                : telegramBot
+                  ? "Not connected"
+                  : "Bot not configured yet"}
+            </div>
+            {profile.telegram_chat_id ? (
+              <Button variant="outline" size="sm" onClick={handleDisconnectTelegram}>
+                Disconnect
+              </Button>
+            ) : (
+              <Button size="sm" onClick={handleConnectTelegram} disabled={!telegramBot}>
+                Connect
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Telegram needs a one-time link: press Start in the bot chat to receive notifications.
+          </p>
         </div>
       </section>
 

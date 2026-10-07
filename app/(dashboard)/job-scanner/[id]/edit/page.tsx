@@ -51,8 +51,15 @@ export default async function EditScannerPage({
     email: config.email,
     notif_whatsapp: config.notif_whatsapp ?? false,
     whatsapp: config.whatsapp,
+    notif_telegram: config.notif_telegram ?? false,
     status: config.status,
   }
 
-  return <ScannerForm initial={initial} />
+  const { data: profile } = await supabase
+    .from("user_profiles")
+    .select("telegram_chat_id")
+    .eq("user_id", config.user_id)
+    .single()
+
+  return <ScannerForm initial={initial} telegramConnected={Boolean(profile?.telegram_chat_id)} />
 }
