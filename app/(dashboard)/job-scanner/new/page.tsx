@@ -10,7 +10,7 @@ export default async function NewScannerPage() {
 
   const { data: subscription } = await supabase
     .from("user_subscriptions")
-    .select("plan")
+    .select("plan, status")
     .eq("user_id", user!.id)
     .maybeSingle()
 
@@ -38,6 +38,10 @@ export default async function NewScannerPage() {
   }
 
   return (
-    <ScannerForm initial={initial as ScanConfig} telegramConnected={Boolean(profile?.telegram_chat_id)} />
+    <ScannerForm
+      initial={initial as ScanConfig}
+      telegramConnected={Boolean(profile?.telegram_chat_id)}
+      isPaid={subscription?.plan === "paid" && subscription.status !== "cancelled"}
+    />
   )
 }

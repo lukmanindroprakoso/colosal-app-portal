@@ -61,5 +61,18 @@ export default async function EditScannerPage({
     .eq("user_id", config.user_id)
     .single()
 
-  return <ScannerForm initial={initial} telegramConnected={Boolean(profile?.telegram_chat_id)} />
+  const { data: sub } = await supabase
+    .from("user_subscriptions")
+    .select("plan, status")
+    .eq("user_id", config.user_id)
+    .maybeSingle()
+  const isPaid = sub?.plan === "paid" && sub.status !== "cancelled"
+
+  return (
+    <ScannerForm
+      initial={initial}
+      telegramConnected={Boolean(profile?.telegram_chat_id)}
+      isPaid={isPaid}
+    />
+  )
 }

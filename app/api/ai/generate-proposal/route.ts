@@ -3,6 +3,9 @@ import { NextResponse } from "next/server"
 
 const MODEL = "gpt-4o-mini"
 
+// LLM call can exceed the platform default timeout, which returns an empty body
+export const maxDuration = 60
+
 export async function POST(request: Request) {
   const supabase = await createClient()
   const {
@@ -95,34 +98,45 @@ ${config.question_instruction ? `Answer instructions: ${config.question_instruct
 Candidate attachments:
 ${candidates?.length ? candidates.map((a) => `${a.id}: ${a.file_name ?? "Untitled"} — ${a.description ?? "no description"}`).join("\n") : "None"}`
 
-  const res = await fetch(`${process.env.SUMOPOD_BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.SUMOPOD_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    }),
-  })
-
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "")
-    console.error("sumopod generation failed", res.status, errText)
-    return NextResponse.json({ error: "AI generation failed" }, { status: 502 })
+  if (!process.env.SUMOPOD_BASE_URL || !process.env.SUMOPOD_API_KEY) {
+    console.error("missing SUMOPOD_BASE_URL or SUMOPOD_API_KEY")
+    return NextResponse.json({ error: "AI service not configured" }, { status: 500 })
   }
 
-  const json = await res.json()
-  const raw = json?.choices?.[0]?.message?.content?.trim() ?? "{}"
-  const parsed = JSON.parse(raw) as {
+  let json: any
+  let parsed: {
     coverLetter?: string
     questionAnswers?: { question: string; answer: string }[]
     attachmentIds?: string[]
+  }
+  try {
+    const res = await fetch(`${process.env.SUMOPOD_BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.SUMOPOD_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      }),
+    })
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "")
+      console.error("sumopod generation failed", res.status, errText)
+      return NextResponse.json({ error: "AI generation failed" }, { status: 502 })
+    }
+
+    json = await res.json()
+    parsed = JSON.parse(json?.choices?.[0]?.message?.content?.trim() ?? "{}")
+  } catch (e) {
+    console.error("sumopod generation error", e)
+    return NextResponse.json({ error: "AI generation failed" }, { status: 502 })
   }
 
   const validCandidateIds = new Set((candidates ?? []).map((a) => a.id))
