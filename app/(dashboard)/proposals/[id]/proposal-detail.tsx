@@ -97,8 +97,8 @@ export function ProposalDetail({ data }: { data: ProposalDetailData }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ proposalId: detail.id }),
       })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error ?? "Generation failed")
+      const json = await res.json().catch(() => null)
+      if (!res.ok || !json) throw new Error(json?.error ?? `Generation failed (${res.status})`)
       setDetail((d) => ({
         ...d,
         cover_letter_generated: json.cover_letter_generated,

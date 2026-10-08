@@ -160,9 +160,11 @@ export function NativeSelect({
 export function ScannerForm({
   initial,
   telegramConnected = false,
+  isPaid = false,
 }: {
   initial?: ScanConfig
   telegramConnected?: boolean
+  isPaid?: boolean
 }) {
   const router = useRouter()
   const supabase = createClient()
@@ -357,7 +359,7 @@ export function ScannerForm({
       attachments: config.attachments ?? [],
       notif_email: config.notif_email,
       email: config.email || null,
-      notif_whatsapp: config.notif_whatsapp,
+      notif_whatsapp: config.notif_whatsapp && isPaid,
       whatsapp: config.whatsapp || null,
       notif_telegram: config.notif_telegram,
       status: asDraft ? "Draft" : "Active",
@@ -798,11 +800,23 @@ export function ScannerForm({
               )}
 
               <Checkbox
-                checked={config.notif_whatsapp}
-                onChange={(v) => set("notif_whatsapp", v)}
-                label="WhatsApp notifications"
+                checked={config.notif_whatsapp && isPaid}
+                onChange={(v) => isPaid && set("notif_whatsapp", v)}
+                label={isPaid ? "WhatsApp notifications" : "WhatsApp notifications (paid plan only)"}
               />
-              {config.notif_whatsapp && (
+              {!isPaid && (
+                <p className="pl-7 text-sm text-muted-foreground">
+                  WhatsApp notifications are available on the paid plan.{" "}
+                  <a
+                    href="mailto:team@paistudio.dev?subject=Enable%20WhatsApp%20notifications"
+                    className="underline"
+                  >
+                    Contact us
+                  </a>{" "}
+                  to enable it.
+                </p>
+              )}
+              {config.notif_whatsapp && isPaid && (
                 <div className="space-y-1.5 pl-7">
                   <Label>WhatsApp number</Label>
                   <Input
