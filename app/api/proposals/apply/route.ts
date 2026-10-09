@@ -14,7 +14,7 @@ export async function POST(request: Request) {
 
   const { data: job } = await supabase
     .from("upwork_jobs")
-    .select("id, scan_config_id")
+    .select("id, scan_config_id, apply_status")
     .eq("id", jobId)
     .single()
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 })
@@ -35,6 +35,20 @@ export async function POST(request: Request) {
     )
   }
 
+  if (job.apply_status === "Dismissed") {
+    return NextResponse.json({ error: "This job was dismissed" }, { status: 400 })
+  }
+
+  // already applied: open the existing proposal instead of creating a duplicate
+  const { data: existing } = await supabase
+    .from("proposals")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("upwork_job_id", jobId)
+    .limit(1)
+    .maybeSingle()
+  if (existing) return NextResponse.json({ proposalId: existing.id })
+
   const { data: proposal, error } = await supabase
     .from("proposals")
     .insert({ user_id: user.id, upwork_job_id: jobId, attachment: [] })
@@ -45,11 +59,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error?.message ?? "Failed to create proposal" }, { status: 500 })
   }
 
-  await supabase
+  const { error: statusError } = await supabase
     .from("upwork_jobs")
     .update({ apply_status: "Applied" })
     .eq("id", jobId)
     .eq("scan_config_id", job.scan_config_id)
+  if (statusError) {
+    // keep proposal and job status consistent
+    await supabase.from("proposals").delete().eq("id", proposal.id)
+    return NextResponse.json({ error: statusError.message }, { status: 500 })
+  }
 
   return NextResponse.json({ proposalId: proposal.id })
 }

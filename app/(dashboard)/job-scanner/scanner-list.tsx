@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { track } from "@/lib/analytics"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -38,6 +39,7 @@ export function ScannerList({ items }: { items: ScannerItem[] }) {
       setDeleting(null)
       return
     }
+    track("scanner_delete")
     toast.success("Scanner deleted")
     setConfirmId(null)
     setDeleting(null)

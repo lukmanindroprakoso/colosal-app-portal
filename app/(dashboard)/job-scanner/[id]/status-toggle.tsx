@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/lib/supabase/client"
+import { track } from "@/lib/analytics"
 import { STATUS_STYLES } from "../scanner-format"
 
 export function StatusToggle({ id, status }: { id: string; status: string }) {
@@ -36,9 +37,13 @@ export function StatusToggle({ id, status }: { id: string; status: string }) {
           description: "Upgrade to activate more.",
           action: {
             label: "Contact us",
-            onClick: () => window.open("mailto:team@paistudio.dev?subject=Upgrade%20request"),
+            onClick: () => {
+              track("upgrade_click", { source: "status_toggle_limit" })
+              window.open("mailto:team@paistudio.dev?subject=Upgrade%20request")
+            },
           },
         })
+        track("scan_limit_reached", { source: "status_toggle" })
       } else {
         toast.error(error.message)
       }
@@ -46,6 +51,7 @@ export function StatusToggle({ id, status }: { id: string; status: string }) {
     }
 
     setCurrent(next)
+    track("scanner_status_change", { status: next })
     toast.success(next === "Active" ? "Scanner activated" : "Scanner paused")
     router.refresh()
   }

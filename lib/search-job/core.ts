@@ -51,6 +51,15 @@ export function matchScore(jobSkills: string[], userSkills: string[]): number | 
   return Math.round((100 * hits) / jobSkills.length)
 }
 
+// which of the job's skills the user has and lacks
+export function matchBreakdown(jobSkills: string[], userSkills: string[]) {
+  const mine = new Set(userSkills.map(norm))
+  return {
+    matched: jobSkills.filter((s) => mine.has(norm(s))),
+    missing: jobSkills.filter((s) => !mine.has(norm(s))),
+  }
+}
+
 function inRange(v: number | null, min: number | null, max: number | null): boolean {
   if (v == null) return false
   return (min == null || v >= min) && (max == null || v <= max)

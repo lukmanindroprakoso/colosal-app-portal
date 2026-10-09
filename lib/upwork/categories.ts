@@ -10,12 +10,19 @@ export interface UpworkCategory {
   subcategories: { id: string; preferredLabel: string }[]
 }
 
+// ponytail: per-instance memory cache, the ontology is global and rarely changes.
+// Swap for unstable_cache / Runtime Cache if cold instances make it miss too often.
+const TTL_MS = 60 * 60 * 1000
+let cache: { at: number; data: UpworkCategory[] } | null = null
+
 export async function fetchUpworkCategories(
   supabase: SupabaseClient,
   userId: string,
   accessToken: string,
   refreshToken: string | null
 ): Promise<UpworkCategory[]> {
+  if (cache && Date.now() - cache.at < TTL_MS) return cache.data
+
   const res = await fetchUpworkWithAuth(supabase, userId, accessToken, refreshToken, (token) =>
     fetch("https://api.upwork.com/graphql", {
       method: "POST",
@@ -31,5 +38,7 @@ export async function fetchUpworkCategories(
 
   const json = await res.json().catch(() => null)
   if (!res.ok || json?.errors) return []
-  return json?.data?.ontologyCategories ?? []
+  const data: UpworkCategory[] = json?.data?.ontologyCategories ?? []
+  if (data.length) cache = { at: Date.now(), data }
+  return data
 }

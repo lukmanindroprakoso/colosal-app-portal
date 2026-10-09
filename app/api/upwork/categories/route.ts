@@ -26,5 +26,9 @@ export async function GET() {
     profile.refresh_token
   )
 
-  return NextResponse.json({ categories })
+  // Browser reuses it across pages and dev double-effects; skip caching failures.
+  return NextResponse.json(
+    { categories },
+    categories.length ? { headers: { "Cache-Control": "private, max-age=3600" } } : undefined
+  )
 }

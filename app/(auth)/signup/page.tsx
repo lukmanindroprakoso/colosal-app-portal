@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { track } from "@/lib/analytics"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -41,12 +42,14 @@ export default function SignupPage() {
       setLoading(false)
       return
     }
+    track("sign_up", { method: "email" })
     setEmailSent(true)
     setLoading(false)
   }
 
   async function handleGoogleSignup() {
     setLoading(true)
+    track("sign_up", { method: "google" })
     const supabase = createClient()
     await supabase.auth.signInWithOAuth({
       provider: "google",

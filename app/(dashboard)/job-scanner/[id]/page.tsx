@@ -36,37 +36,65 @@ export default async function ScannerDetailPage({
 
   if (!config) notFound()
 
-  let categoryLabel: string | null = config.category
-  if (config.category) {
+  async function resolveCategoryLabel(): Promise<string | null> {
+    if (!config!.category) return config!.category
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    const { data: profile } = user
-      ? await supabase
-          .from("user_profiles")
-          .select("access_token, refresh_token")
-          .eq("user_id", user.id)
-          .single()
-      : { data: null }
+    if (!user) return config!.category
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("access_token, refresh_token")
+      .eq("user_id", user.id)
+      .single()
+    if (!profile?.access_token) return config!.category
 
-    if (user && profile?.access_token) {
-      const categories = await fetchUpworkCategories(
-        supabase,
-        user.id,
-        profile.access_token,
-        profile.refresh_token
-      )
-      const match = categories
-        .flatMap((cat) => cat.subcategories)
-        .find((sub) => sub.id === config.category)
-      if (match) categoryLabel = match.preferredLabel
+    const categories = await fetchUpworkCategories(
+      supabase,
+      user.id,
+      profile.access_token,
+      profile.refresh_token
+    )
+    const match = categories
+      .flatMap((cat) => cat.subcategories)
+      .find((sub) => sub.id === config!.category)
+    return match ? match.preferredLabel : config!.category
+  }
+
+  // plan and Telegram link decide which notification channels can be switched on
+  async function resolveAccess() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return { isPaid: false, telegramConnected: false }
+    const [{ data: sub }, { data: profile }] = await Promise.all([
+      supabase.from("user_subscriptions").select("plan, status").eq("user_id", user.id).maybeSingle(),
+      supabase.from("user_profiles").select("telegram_chat_id").eq("user_id", user.id).single(),
+    ])
+    return {
+      isPaid: sub?.plan === "paid" && sub.status !== "cancelled",
+      telegramConnected: Boolean(profile?.telegram_chat_id),
     }
   }
 
-  const baseQuery = supabase.from("upwork_jobs").select("id", { count: "exact", head: true }).eq("scan_config_id", id)
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
+  sevenDaysAgo.setHours(0, 0, 0, 0)
 
-  const [allCount, newCount, appliedCount, dismissedCount] = await Promise.all([
-    baseQuery,
+  // Independent of each other: run together instead of one after another.
+  const [categoryLabel, recentRes, allCount, newCount, appliedCount, dismissedCount, access] = await Promise.all([
+    resolveCategoryLabel(),
+    supabase
+      .from("upwork_jobs")
+      .select("inserted_at")
+      .eq("scan_config_id", id)
+      .gte("inserted_at", sevenDaysAgo.toISOString()),
+    // "All" hides dismissed jobs; null status counts as New
+    supabase
+      .from("upwork_jobs")
+      .select("id", { count: "exact", head: true })
+      .eq("scan_config_id", id)
+      .or("apply_status.is.null,apply_status.neq.Dismissed"),
     supabase
       .from("upwork_jobs")
       .select("id", { count: "exact", head: true })
@@ -82,6 +110,7 @@ export default async function ScannerDetailPage({
       .select("id", { count: "exact", head: true })
       .eq("scan_config_id", id)
       .eq("apply_status", "Dismissed"),
+    resolveAccess(),
   ])
 
   const counts: Record<ApplyStatusTab, number> = {
@@ -91,14 +120,7 @@ export default async function ScannerDetailPage({
     Dismissed: dismissedCount.count ?? 0,
   }
 
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
-  sevenDaysAgo.setHours(0, 0, 0, 0)
-  const { data: recentJobs } = await supabase
-    .from("upwork_jobs")
-    .select("inserted_at")
-    .eq("scan_config_id", id)
-    .gte("inserted_at", sevenDaysAgo.toISOString())
+  const recentJobs = recentRes.data
 
   const dailyCounts: DailyCount[] = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(sevenDaysAgo)
@@ -124,9 +146,10 @@ export default async function ScannerDetailPage({
     .order("inserted_at", { ascending: false })
     .range((clampedPage - 1) * PAGE_SIZE, clampedPage * PAGE_SIZE - 1)
 
-  if (activeTab !== "All") {
-    jobsQuery = jobsQuery.eq("apply_status", activeTab)
-  }
+  jobsQuery =
+    activeTab === "All"
+      ? jobsQuery.or("apply_status.is.null,apply_status.neq.Dismissed")
+      : jobsQuery.eq("apply_status", activeTab)
 
   const { data: jobRows } = await jobsQuery
 
@@ -161,12 +184,13 @@ export default async function ScannerDetailPage({
         </Link>
       </Button>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[340px_1fr] lg:items-start">
-        <ConfigSummary config={configDetail} />
+        <ConfigSummary config={configDetail} isPaid={access.isPaid} telegramConnected={access.telegramConnected} />
         <div className="flex min-w-0 flex-col gap-4">
           <ScanChart days={dailyCounts} />
           <JobListTabs scanConfigId={id} counts={counts} activeTab={activeTab} />
           <JobList
             scanConfigId={id}
+            hasTemplate={!!config.proposal_template_id}
             jobs={(jobRows ?? []) as JobRow[]}
             activeTab={activeTab}
             page={clampedPage}

@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useState } from "react"
 import { Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { track } from "@/lib/analytics"
 import {
   Dialog,
   DialogContent,
@@ -36,7 +37,12 @@ export function NewScannerButton({ blocked }: { blocked: boolean }) {
                 Close
               </Button>
               <Button asChild>
-                <a href="mailto:team@paistudio.dev?subject=Upgrade%20request">Contact us</a>
+                <a
+                  href="mailto:team@paistudio.dev?subject=Upgrade%20request"
+                  onClick={() => track("upgrade_click", { source: "new_scanner_dialog" })}
+                >
+                  Contact us
+                </a>
               </Button>
             </DialogFooter>
           </DialogContent>

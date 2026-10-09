@@ -40,7 +40,9 @@ export async function searchJobs(
   supabase: SupabaseClient,
   userId: string,
   keyword: string,
-  all: boolean
+  all: boolean,
+  extra: Record<string, unknown> = {},
+  page = { after: 0, first: 50 }
 ): Promise<{ status: number; body: any }> {
   const { data: profile } = await supabase
     .from("user_profiles")
@@ -71,7 +73,8 @@ export async function searchJobs(
           variables: {
             marketPlaceJobFilter: {
               searchExpression_eq: keyword,
-              pagination_eq: { after: "0", first: 50 },
+              ...extra,
+              pagination_eq: { after: String(page.after), first: page.first },
             },
             sortAttributes: [{ field: "RECENCY" }],
           },

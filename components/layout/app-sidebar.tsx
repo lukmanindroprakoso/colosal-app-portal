@@ -3,9 +3,10 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Settings, TrendingUp, Radar, Search, PanelLeftClose, PanelLeftOpen } from "lucide-react"
+import { LayoutDashboard, Settings, TrendingUp, Radar, Search, Sparkles, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/logo"
+import { track } from "@/lib/analytics"
 
 const NAV_SECTIONS = [
   {
@@ -25,7 +26,7 @@ const NAV_SECTIONS = [
   },
 ]
 
-export function AppSidebar() {
+export function AppSidebar({ isPaid = false }: { isPaid?: boolean }) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
 
@@ -90,6 +91,27 @@ export function AppSidebar() {
           </div>
         ))}
       </nav>
+
+      {/* Plan status */}
+      <div className="p-2">
+        <Link
+          href={isPaid ? "/settings" : "mailto:team@paistudio.dev?subject=Upgrade%20request"}
+          onClick={() => !isPaid && track("upgrade_click", { source: "sidebar" })}
+          title={collapsed ? (isPaid ? "Paid plan" : "Free plan") : undefined}
+          className={cn(
+            "flex items-center gap-3 rounded-md bg-muted px-3 py-2 text-sm transition-colors hover:bg-accent",
+            collapsed && "justify-center px-2"
+          )}
+        >
+          <Sparkles className={cn("h-4 w-4 shrink-0", isPaid ? "text-primary" : "text-muted-foreground")} />
+          {!collapsed && (
+            <span className="flex flex-col leading-tight">
+              <span className="font-medium">{isPaid ? "Paid plan" : "Free plan"}</span>
+              {!isPaid && <span className="text-xs text-muted-foreground">Upgrade for more</span>}
+            </span>
+          )}
+        </Link>
+      </div>
     </aside>
   )
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { track } from "@/lib/analytics"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -375,9 +376,13 @@ export function ScannerForm({
           description: "Upgrade to activate more.",
           action: {
             label: "Contact us",
-            onClick: () => window.open("mailto:team@paistudio.dev?subject=Upgrade%20request"),
+            onClick: () => {
+              track("upgrade_click", { source: "scanner_form_limit" })
+              window.open("mailto:team@paistudio.dev?subject=Upgrade%20request")
+            },
           },
         })
+        track("scan_limit_reached", { source: "scanner_form" })
       } else {
         toast.error(error.message)
       }
@@ -385,6 +390,7 @@ export function ScannerForm({
       return
     }
 
+    track(isEdit ? "scanner_update" : "scanner_create", { status: config.status })
     toast.success(isEdit ? "Scanner updated" : "Scanner created")
     router.push("/job-scanner")
     router.refresh()
@@ -809,6 +815,7 @@ export function ScannerForm({
                   WhatsApp notifications are available on the paid plan.{" "}
                   <a
                     href="mailto:team@paistudio.dev?subject=Enable%20WhatsApp%20notifications"
+                    onClick={() => track("upgrade_click", { source: "whatsapp_notification" })}
                     className="underline"
                   >
                     Contact us

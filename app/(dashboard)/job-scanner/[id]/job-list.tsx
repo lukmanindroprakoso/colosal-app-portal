@@ -4,12 +4,22 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { track } from "@/lib/analytics"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { Briefcase, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { timeAgo } from "../scanner-format"
+import { NativeSelect } from "../scanner-form"
 
 export type ApplyStatusTab = "All" | "New" | "Applied" | "Dismissed"
 
@@ -29,6 +39,7 @@ export interface JobRow {
 
 export interface JobListProps {
   scanConfigId: string
+  hasTemplate: boolean
   jobs: JobRow[]
   activeTab: ApplyStatusTab
   page: number
@@ -105,6 +116,7 @@ export function JobListTabs({
 
 export function JobList({
   scanConfigId,
+  hasTemplate,
   jobs,
   activeTab,
   page,
@@ -113,6 +125,11 @@ export function JobList({
 }: JobListProps) {
   const router = useRouter()
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [templateSet, setTemplateSet] = useState(hasTemplate)
+  const [pickJobId, setPickJobId] = useState<string | null>(null) // job waiting for a template choice
+  const [templates, setTemplates] = useState<{ id: string; name: string | null }[] | null>(null)
+  const [templateId, setTemplateId] = useState<string | null>(null)
+  const [savingTemplate, setSavingTemplate] = useState(false)
   const totalPages = Math.max(1, Math.ceil(activeTabTotal / pageSize))
 
   async function updateStatus(jobId: string, status: "Dismissed") {
@@ -124,12 +141,24 @@ export function JobList({
       setUpdatingId(null)
       return
     }
+    track("job_dismiss")
     toast.success("Job dismissed")
     setUpdatingId(null)
     router.refresh()
   }
 
   async function applyToJob(jobId: string) {
+    if (!templateSet) {
+      setPickJobId(jobId)
+      if (!templates) {
+        const { data } = await createClient()
+          .from("proposal_templates")
+          .select("id, name")
+          .order("created_at", { ascending: false })
+        setTemplates(data ?? [])
+      }
+      return
+    }
     setUpdatingId(jobId)
     const res = await fetch("/api/proposals/apply", {
       method: "POST",
@@ -142,7 +171,26 @@ export function JobList({
       setUpdatingId(null)
       return
     }
+    track("job_apply")
     router.push(`/proposals/${json.proposalId}`)
+  }
+
+  async function confirmTemplate() {
+    if (!templateId || !pickJobId || savingTemplate) return
+    setSavingTemplate(true)
+    const { error } = await createClient()
+      .from("user_scan_config")
+      .update({ proposal_template_id: templateId })
+      .eq("id", scanConfigId)
+    setSavingTemplate(false)
+    if (error) {
+      toast.error(error.message)
+      return
+    }
+    const jobId = pickJobId
+    setTemplateSet(true)
+    setPickJobId(null)
+    applyToJob(jobId)
   }
 
   return (
@@ -261,6 +309,42 @@ export function JobList({
           )}
         </div>
       ) : null}
+      <Dialog open={!!pickJobId} onOpenChange={(o) => !o && setPickJobId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Choose a proposal template</DialogTitle>
+            <DialogDescription>
+              This scanner has no proposal template yet. Pick one and it will be saved to the scanner, then the proposal is created.
+            </DialogDescription>
+          </DialogHeader>
+          {templates === null ? (
+            <Loader2 className="mx-auto animate-spin text-muted-foreground" />
+          ) : templates.length > 0 ? (
+            <NativeSelect
+              value={templateId}
+              onChange={setTemplateId}
+              placeholder="Select a saved template"
+              options={templates.map((t) => ({ value: t.id, label: t.name ?? "Untitled template" }))}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              You have no templates yet.{" "}
+              <Link href="/proposals?tab=templates" className="underline">
+                Create one first
+              </Link>
+              .
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPickJobId(null)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmTemplate} disabled={!templateId || savingTemplate}>
+              {savingTemplate && <Loader2 className="animate-spin" />} Save and apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

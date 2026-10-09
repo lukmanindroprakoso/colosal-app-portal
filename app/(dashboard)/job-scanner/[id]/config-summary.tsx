@@ -2,9 +2,10 @@ import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { Mail, MessageCircle, Pencil, Send } from "lucide-react"
+import { Pencil } from "lucide-react"
 import { STATUS_STYLES } from "../scanner-format"
 import { StatusToggle } from "./status-toggle"
+import { NotificationToggles } from "./notification-toggles"
 
 export interface ScanConfigDetail {
   id: string
@@ -72,7 +73,15 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-export function ConfigSummary({ config }: { config: ScanConfigDetail }) {
+export function ConfigSummary({
+  config,
+  isPaid,
+  telegramConnected,
+}: {
+  config: ScanConfigDetail
+  isPaid: boolean
+  telegramConnected: boolean
+}) {
   const skillLabels = (config.skills ?? [])
     .map((s) => s.preferredLabel ?? s.label)
     .filter((label): label is string => Boolean(label))
@@ -141,29 +150,18 @@ const scanFailed = config.scan_result ? /fail|error/i.test(config.scan_result) :
       </Section>
 
       <Section title="Notifications">
-        <div className="flex flex-col gap-2">
-          <div className={cn("flex items-center gap-1.5 text-sm", !config.notif_email && "opacity-50")}>
-            <Mail className="h-4 w-4 shrink-0" />
-            <span className="truncate">{config.email || "No email set"}</span>
-            <Badge variant={config.notif_email ? "default" : "outline"} className="ml-auto shrink-0">
-              {config.notif_email ? "On" : "Off"}
-            </Badge>
-          </div>
-          <div className={cn("flex items-center gap-1.5 text-sm", !config.notif_whatsapp && "opacity-50")}>
-            <MessageCircle className="h-4 w-4 shrink-0" />
-            <span className="truncate">{config.whatsapp || "No number set"}</span>
-            <Badge variant={config.notif_whatsapp ? "default" : "outline"} className="ml-auto shrink-0">
-              {config.notif_whatsapp ? "On" : "Off"}
-            </Badge>
-          </div>
-          <div className={cn("flex items-center gap-1.5 text-sm", !config.notif_telegram && "opacity-50")}>
-            <Send className="h-4 w-4 shrink-0" />
-            <span className="truncate">Telegram</span>
-            <Badge variant={config.notif_telegram ? "default" : "outline"} className="ml-auto shrink-0">
-              {config.notif_telegram ? "On" : "Off"}
-            </Badge>
-          </div>
-        </div>
+        <NotificationToggles
+          id={config.id}
+          values={{
+            notif_email: config.notif_email,
+            notif_whatsapp: config.notif_whatsapp,
+            notif_telegram: config.notif_telegram,
+          }}
+          email={config.email}
+          whatsapp={config.whatsapp}
+          isPaid={isPaid}
+          telegramConnected={telegramConnected}
+        />
       </Section>
     </div>
   )

@@ -1,5 +1,6 @@
 import { Geist_Mono, Inter } from "next/font/google"
 import type { Metadata } from "next"
+import Script from "next/script"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -11,7 +12,9 @@ export const metadata: Metadata = {
   description: "Your freelancer positioning workspace",
 }
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'})
+const GA_ID = "G-6CFVC0H4J1"
+
+const inter =Inter({subsets:['latin'],variable:'--font-sans'})
 
 const fontMono = Geist_Mono({
   subsets: ["latin"],
@@ -30,6 +33,10 @@ export default function RootLayout({
       className={cn("antialiased", fontMono.variable, "font-sans", inter.variable)}
     >
       <body>
+        <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} strategy="afterInteractive" />
+        <Script id="ga-init" strategy="afterInteractive">
+          {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','${GA_ID}');`}
+        </Script>
         <ThemeProvider>
           {children}
           <Toaster />
