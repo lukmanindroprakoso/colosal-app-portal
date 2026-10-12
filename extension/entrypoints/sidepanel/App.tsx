@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { api } from "../../lib/api"
 import { COLOSAL_URL } from "../../lib/config"
 import type { Template } from "../../lib/types"
+import Logo from "./Logo"
 import ProfileTab from "./ProfileTab"
 import ProposalTab from "./ProposalTab"
 
@@ -10,6 +11,17 @@ type Auth =
   | { state: "unauth" }
   | { state: "error"; message: string }
   | { state: "ready"; templates: Template[] }
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <header className="top">
+        <Logo />
+      </header>
+      {children}
+    </>
+  )
+}
 
 export default function App() {
   const [auth, setAuth] = useState<Auth>({ state: "loading" })
@@ -29,49 +41,74 @@ export default function App() {
     return () => window.removeEventListener("focus", check)
   }, [check])
 
-  if (auth.state === "loading") return <main className="p muted">Memuat...</main>
+  if (auth.state === "loading") {
+    return (
+      <Shell>
+        <main className="p muted">Memuat...</main>
+      </Shell>
+    )
+  }
 
   if (auth.state === "unauth") {
     return (
-      <main className="p">
-        <h1>Masuk ke Colosal</h1>
-        <p>Anda perlu login di Colosal untuk memakai extension ini.</p>
-        <div className="row">
-          <button className="btn" onClick={() => chrome.tabs.create({ url: `${COLOSAL_URL}/login` })}>
-            Login ke Colosal
-          </button>
-          <button className="link" onClick={check}>
-            Periksa lagi
-          </button>
-        </div>
-      </main>
+      <Shell>
+        <main className="p">
+          <h1>Masuk ke Colosal</h1>
+          <p>Anda perlu login di Colosal untuk memakai extension ini.</p>
+          <div className="row">
+            <button
+              className="btn"
+              onClick={() =>
+                chrome.tabs.create({ url: `${COLOSAL_URL}/login` })
+              }
+            >
+              Login ke Colosal
+            </button>
+            <button className="link" onClick={check}>
+              Periksa lagi
+            </button>
+          </div>
+        </main>
+      </Shell>
     )
   }
 
   if (auth.state === "error") {
     return (
-      <main className="p">
-        <p className="err">{auth.message}</p>
-        <button className="btn" onClick={check}>
-          Coba lagi
-        </button>
-      </main>
+      <Shell>
+        <main className="p">
+          <p className="err">{auth.message}</p>
+          <button className="btn" onClick={check}>
+            Coba lagi
+          </button>
+        </main>
+      </Shell>
     )
   }
 
   return (
-    <>
+    <Shell>
       <nav className="tabs">
-        <button className={tab === "proposal" ? "on" : ""} onClick={() => setTab("proposal")}>
+        <button
+          className={tab === "proposal" ? "on" : ""}
+          onClick={() => setTab("proposal")}
+        >
           Proposal
         </button>
-        <button className={tab === "profile" ? "on" : ""} onClick={() => setTab("profile")}>
+        <button
+          className={tab === "profile" ? "on" : ""}
+          onClick={() => setTab("profile")}
+        >
           Profil
         </button>
       </nav>
       <main className="p">
-        {tab === "proposal" ? <ProposalTab templates={auth.templates} /> : <ProfileTab />}
+        {tab === "proposal" ? (
+          <ProposalTab templates={auth.templates} />
+        ) : (
+          <ProfileTab />
+        )}
       </main>
-    </>
+    </Shell>
   )
 }

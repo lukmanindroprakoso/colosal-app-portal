@@ -101,7 +101,7 @@ export default function ProposalTab({ templates }: { templates: Template[] }) {
             <ul>
               {result.confidence.factors.map((f) => (
                 <li key={f.name}>
-                  <strong>{f.name}</strong> <span className="badge">{RATING_LABEL[f.rating]}</span>
+                  <strong>{f.name}</strong> <span className={`badge ${f.rating}`}>{RATING_LABEL[f.rating]}</span>
                   <div className="muted">{f.note}</div>
                 </li>
               ))}
