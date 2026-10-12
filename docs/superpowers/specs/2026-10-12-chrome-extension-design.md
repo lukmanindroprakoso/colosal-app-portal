@@ -14,7 +14,7 @@ Kriteria sukses: user yang sudah login di Colosal dapat membuka side panel di ha
 ## Di luar scope v1
 
 - Isi otomatis form Upwork (hanya saran tertulis + tombol Copy).
-- Menyimpan hasil ke database.
+- Menyimpan hasil proposal ke database, dan menyimpan saran profil secara otomatis. Saran profil hanya disimpan lewat tombol eksplisit "Save to Colosal profile" (`POST /api/ext/profile/save`): overview ke `summary`, headline ke `current_role`, skills ke `skills_text`, dengan konfirmasi dan Undo selama panel terbuka.
 - Rilis ke Chrome Web Store.
 - Attachment pada proposal.
 

@@ -32,6 +32,9 @@ export type ProposalResult = {
   confidence: { score: number | null; factors: { name: string; rating: Rating; note: string }[] }
 }
 
+// Colosal profile columns (user_profiles) that profile suggestions map to.
+export type ProfileFields = { summary?: string; current_role?: string; skills_text?: string }
+
 export type ProfileResult = {
   report: { strengths: string[]; weaknesses: string[] }
   suggestions: { headline: string; overview: string; skills: string[] }
