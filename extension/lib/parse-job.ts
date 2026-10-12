@@ -62,7 +62,7 @@ export function parseJobText(title: string, text: string): JobData {
   const s = idx(/^Skills and Expertise$/)
   if (s !== -1) {
     for (let i = s + 1; i < lines.length && skills.length < 30 && !SKILLS_END.test(lines[i]); i++) {
-      skills.push(lines[i])
+      skills.push(lines[i]!)
     }
   }
 
