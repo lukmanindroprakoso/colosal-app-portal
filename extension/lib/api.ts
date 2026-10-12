@@ -10,7 +10,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> 
     const res = await fetch(`${COLOSAL_URL}${path}`, {
       credentials: "include",
       ...init,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Colosal-Ext": "1" },
     })
     if (res.status === 401) return { ok: false, status: "unauth", message: "Anda belum login di Colosal." }
     const body = await res.json().catch(() => null)

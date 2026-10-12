@@ -9,7 +9,13 @@ const UNAVAILABLE = "Layanan sedang bermasalah. Coba lagi."
 // Fails closed (503) if the usage table cannot be read: the limit exists for cost control.
 // Call recordUsage() right before the expensive work so rejected requests are not charged.
 export async function extGuard(req: Request, kind?: "proposal" | "profile") {
-  if (req.headers.get("origin") !== process.env.EXTENSION_ORIGIN) {
+  // Chrome omits Origin on GET requests from extension pages, so Origin alone cannot identify
+  // the extension. A custom header cannot be sent cross-site without a preflight, and the
+  // preflight only succeeds for EXTENSION_ORIGIN (see ext-cors.ts); a present Origin must match.
+  const origin = req.headers.get("origin")
+  const fromExtension =
+    req.headers.get("x-colosal-ext") === "1" && (origin === null || origin === process.env.EXTENSION_ORIGIN)
+  if (!process.env.EXTENSION_ORIGIN || !fromExtension) {
     return { error: extJson(req, { error: "Forbidden" }, 403) }
   }
 
