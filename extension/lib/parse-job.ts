@@ -16,13 +16,13 @@ export function parseJobText(title: string, text: string): JobData {
     .map((l) => l.trim())
     .filter(Boolean)
   const idx = (re: RegExp, from = 0) => {
-    for (let i = from; i < lines.length; i++) if (re.test(lines[i])) return i
+    for (let i = from; i < lines.length; i++) if (re.test(lines[i]!)) return i
     return -1
   }
   const grab = (re: RegExp, src = lines) => {
     for (const l of src) {
       const m = l.match(re)
-      if (m) return m[1].trim()
+      if (m) return m[1]!.trim()
     }
     return undefined
   }
@@ -52,16 +52,16 @@ export function parseJobText(title: string, text: string): JobData {
   const q = idx(/^You will be asked/)
   if (q !== -1) {
     for (let i = q + 1; i < lines.length; i++) {
-      const m = lines[i].match(/^\d+\.\s+(.+)$/)
+      const m = lines[i]!.match(/^\d+\.\s+(.+)$/)
       if (!m) break
-      questions.push(m[1])
+      questions.push(m[1]!)
     }
   }
 
   const skills: string[] = []
   const s = idx(/^Skills and Expertise$/)
   if (s !== -1) {
-    for (let i = s + 1; i < lines.length && skills.length < 30 && !SKILLS_END.test(lines[i]); i++) {
+    for (let i = s + 1; i < lines.length && skills.length < 30 && !SKILLS_END.test(lines[i]!); i++) {
       skills.push(lines[i]!)
     }
   }
