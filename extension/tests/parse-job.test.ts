@@ -38,9 +38,7 @@ describe("parseJobText", () => {
   })
 
   it("parses an hourly budget range", () => {
-    const text = JOB_TEXT.replace("$2,500.00
-Fixed-price", "$20.00 - $40.00
-Hourly")
+    const text = JOB_TEXT.replace("$2,500.00\nFixed-price", "$20.00 - $40.00\nHourly")
     const job = parseJobText(JOB_TITLE, text)
     expect(job.budget).toBe("$20.00 - $40.00 Hourly")
     expect(job.experienceLevel).toBe("Expert")
