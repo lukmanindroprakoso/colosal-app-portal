@@ -1,5 +1,5 @@
 import { AiError, chatJson } from "@/lib/ai/sumopod"
-import { extGuard } from "@/lib/ext-auth"
+import { extGuard, recordUsage } from "@/lib/ext-auth"
 import { extJson, extOptions } from "@/lib/ext-cors"
 
 export const maxDuration = 60
@@ -92,6 +92,7 @@ Portfolio: ${profile?.portfolio ?? "N/A"}
 Key proof points: ${profile?.key_proof_points ?? "N/A"}
 Positioning notes: ${profile?.positioning_notes ?? "N/A"}`
 
+  await recordUsage(g.supabase, g.user.id, "proposal")
   try {
     const { data } = await chatJson<Result>(SYSTEM, userPrompt)
     if (typeof data.coverLetter !== "string" || !data.coverLetter.trim()) {

@@ -1,5 +1,5 @@
 import { AiError, chatJson } from "@/lib/ai/sumopod"
-import { extGuard } from "@/lib/ext-auth"
+import { extGuard, recordUsage } from "@/lib/ext-auth"
 import { extJson, extOptions } from "@/lib/ext-cors"
 import { fetchTalentProfile } from "@/lib/upwork/talent-profile"
 
@@ -41,6 +41,7 @@ export async function POST(req: Request) {
   }
   if (!t.profile) return extJson(req, { error: "Profil Upwork tidak ditemukan." }, 404)
 
+  await recordUsage(g.supabase, g.user.id, "profile")
   try {
     const { data } = await chatJson<Result>(
       SYSTEM,
@@ -49,17 +50,19 @@ export async function POST(req: Request) {
     if (!data.report || !data.suggestions) {
       return extJson(req, { error: "Hasil AI tidak lengkap. Coba lagi." }, 502)
     }
-    return extJson(req, {
-      report: {
-        strengths: list(data.report.strengths, 10),
-        weaknesses: list(data.report.weaknesses, 10),
-      },
-      suggestions: {
-        headline: typeof data.suggestions.headline === "string" ? data.suggestions.headline.slice(0, 300) : "",
-        overview: typeof data.suggestions.overview === "string" ? data.suggestions.overview.slice(0, 6000) : "",
-        skills: list(data.suggestions.skills, 15),
-      },
-    })
+    const report = {
+      strengths: list(data.report.strengths, 10),
+      weaknesses: list(data.report.weaknesses, 10),
+    }
+    const suggestions = {
+      headline: typeof data.suggestions.headline === "string" ? data.suggestions.headline.slice(0, 300) : "",
+      overview: typeof data.suggestions.overview === "string" ? data.suggestions.overview.slice(0, 6000) : "",
+      skills: list(data.suggestions.skills, 15),
+    }
+    if (!report.strengths.length && !report.weaknesses.length) {
+      return extJson(req, { error: "Hasil AI tidak lengkap. Coba lagi." }, 502)
+    }
+    return extJson(req, { report, suggestions })
   } catch (e) {
     if (e instanceof AiError) return extJson(req, { error: e.message }, e.status)
     throw e
