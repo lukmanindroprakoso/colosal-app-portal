@@ -30,6 +30,7 @@ NEXT_PUBLIC_SITE_URL=
 UPWORK_CLIENT_ID=
 UPWORK_CLIENT_SECRET=
 NEXT_PUBLIC_TELEGRAM_BOT_USERNAME=   # optional; Settings "Connect" for Telegram is disabled until set
+EXTENSION_ORIGIN=                    # chrome-extension://<ID>; ID is derived from the key in extension/wxt.config.ts
 ```
 
 ## Architecture
@@ -58,6 +59,18 @@ Key tables: `user_profiles`, `user_scan_config`, `upwork_jobs`, `attachments`.
 ### UI Components
 
 shadcn/ui components live in `components/ui/`. Use `components.json` and the `shadcn` CLI to add new components. Layout components (`AppSidebar`, `AppHeader`) are in `components/layout/`. Path alias `@/` maps to the repo root.
+
+### Chrome Extension (`extension/`)
+
+Separate WXT + React package (own `package.json`; excluded from root `tsconfig`/eslint). Side panel for Upwork job pages (proposal generation) and profile optimization. Calls `app/api/ext/*` with the Supabase session cookie; those routes check `Origin` against `EXTENSION_ORIGIN`, answer 401 JSON (`/api/ext` is a public path in `proxy.ts`), and enforce a per-user daily limit via `ext_usage`. Job pages are parsed locally in `extension/lib/parse-job.ts` (text-anchored, tested with `npm test` in `extension/`); profile optimization reads the user's own profile from the Upwork API server-side (`lib/upwork/talent-profile.ts`), so it needs the connected Upwork account but no page access.
+
+```bash
+cd extension
+npm run dev      # WXT dev build with reload
+npm run build    # extension/.output/chrome-mv3 (load unpacked)
+npm test         # parser tests
+# Another Colosal URL: set WXT_COLOSAL_URL in the shell before build.
+```
 
 ### Job Scanner Feature
 
