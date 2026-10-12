@@ -17,6 +17,10 @@ export type JobData = {
     jobsPosted?: number
     hireRate?: string
     memberSince?: string
+    rating?: string
+    totalSpent?: string
+    hires?: number
+    avgHourlyRate?: string
   }
 }
 

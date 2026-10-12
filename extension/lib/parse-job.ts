@@ -3,7 +3,10 @@ import type { JobData } from "./types"
 export class ParseError extends Error {}
 
 const NOT_JOB = "This is not an Upwork job details page. Open the job you want to apply to."
+const MONEY = /^\$[\d,]+(\.\d+)?$/
 const BUDGET = /^\$[\d,]+(\.\d+)?(\s*-\s*\$[\d,]+(\.\d+)?)?$/
+const LEVEL = /^(Entry level|Intermediate|Expert)$/i
+const HOURS_BLOCK = /^(More than|Less than)\s+\d+\s+hrs\/week$/i
 const QUESTIONS_END =
   /^(Skills and Expertise|Preferred qualifications|Activity on this job|About the client|Project Type:)/i
 const SKILLS_END = /^(Preferred qualifications|Activity on this job|Upgrade your membership)/i
@@ -20,17 +23,19 @@ export function parseJobText(title: string, text: string): JobData {
   // Upwork can render a range as separate lines ("$9.00", "-", "$12.00"): merge them.
   const lines: string[] = []
   for (let i = 0; i < raw.length; i++) {
-    if (/^\$[\d,]+(\.\d+)?$/.test(raw[i]!) && raw[i + 1] === "-" && /^\$[\d,]+(\.\d+)?$/.test(raw[i + 2] ?? "")) {
+    if (MONEY.test(raw[i]!) && raw[i + 1] === "-" && MONEY.test(raw[i + 2] ?? "")) {
       lines.push(`${raw[i]} - ${raw[i + 2]}`)
       i += 2
     } else {
       lines.push(raw[i]!)
     }
   }
+
   const idx = (re: RegExp, from = 0) => {
     for (let i = from; i < lines.length; i++) if (re.test(lines[i]!)) return i
     return -1
   }
+  // Inline value ("Label: value"), searching in `src`.
   const grab = (re: RegExp, src = lines) => {
     for (const l of src) {
       const m = l.match(re)
@@ -38,7 +43,15 @@ export function parseJobText(title: string, text: string): JobData {
     }
     return undefined
   }
-  const num = (v: string | undefined) => (v === undefined ? undefined : Number(v))
+  // Value of a "Label:" that may sit on the same line or on the next one.
+  const field = (re: RegExp) => {
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i]!.match(re)
+      if (m) return m[1]?.trim() || lines[i + 1]?.trim() || undefined
+    }
+    return undefined
+  }
+  const num = (v: string | undefined) => (v === undefined || Number.isNaN(Number(v)) ? undefined : Number(v))
 
   // Description: from the "Summary" heading (or just after the posted/location lines)
   // up to the first line that starts the metadata block.
@@ -50,14 +63,17 @@ export function parseJobText(title: string, text: string): JobData {
   const budgetIdx = lines.findIndex(
     (l, i) => i >= start && BUDGET.test(l) && /^(fixed-price|hourly)/i.test(lines[i + 1] ?? "")
   )
+  const skillsIdx = idx(/^Skills and Expertise$/, start)
   const stops = [
+    idx(HOURS_BLOCK, start),
     budgetIdx,
     idx(/^Project Type:/, start),
     idx(/^You will be asked/, start),
-    idx(/^Skills and Expertise$/, start),
+    skillsIdx,
   ].filter((i) => i >= start)
   if (stops.length === 0) throw new ParseError(NOT_JOB)
-  const description = lines.slice(start, Math.min(...stops)).join("\n")
+  const descEnd = Math.min(...stops)
+  const description = lines.slice(start, descEnd).join("\n")
   if (!description) throw new ParseError(NOT_JOB)
 
   const questions: string[] = []
@@ -65,27 +81,23 @@ export function parseJobText(title: string, text: string): JobData {
   if (q !== -1) {
     // innerText drops list markers, so questions arrive unnumbered; strip a number if present.
     for (let i = q + 1; i < lines.length && questions.length < 20 && !QUESTIONS_END.test(lines[i]!); i++) {
-      const text = lines[i]!.replace(/^\d+\.\s*/, "")
-      if (text) questions.push(text)
+      const question = lines[i]!.replace(/^\d+\.\s*/, "")
+      if (question) questions.push(question)
     }
   }
 
   const skills: string[] = []
-  const s = idx(/^Skills and Expertise$/)
-  if (s !== -1) {
-    for (let i = s + 1; i < lines.length && skills.length < 30 && !SKILLS_END.test(lines[i]!); i++) {
+  if (skillsIdx !== -1) {
+    for (let i = skillsIdx + 1; i < lines.length && skills.length < 30 && !SKILLS_END.test(lines[i]!); i++) {
       skills.push(lines[i]!)
     }
   }
 
-  const experienceLevel =
-    budgetIdx === -1
-      ? undefined
-      : lines.slice(budgetIdx + 2, budgetIdx + 4).find((l) => /^(Entry level|Intermediate|Expert)$/i.test(l))
+  const experienceLevel = lines.slice(descEnd, skillsIdx === -1 ? undefined : skillsIdx).find((l) => LEVEL.test(l))
 
   const about = idx(/^About the client$/)
   const client = about === -1 ? [] : lines.slice(about + 1)
-  const time = client.findIndex((l) => /^\d{1,2}:\d{2}\s*[AP]M$/i.test(l))
+  const time = client.findIndex((l) => /\d{1,2}:\d{2}\s*[AP]M$/i.test(l))
 
   return {
     title: title.trim(),
@@ -94,13 +106,13 @@ export function parseJobText(title: string, text: string): JobData {
     skills,
     budget: budgetIdx === -1 ? undefined : `${lines[budgetIdx]} ${lines[budgetIdx + 1]}`,
     experienceLevel,
-    projectType: grab(/^Project Type:\s*(.+)$/),
-    englishLevel: grab(/^English level:\s*(.+)$/),
+    projectType: field(/^Project Type:\s*(.*)$/),
+    englishLevel: field(/^English level:\s*(.*)$/),
     connectsCost: num(text.match(/Send a proposal for:\s*(\d+)\s*Connects/i)?.[1]),
     activity: {
-      proposals: grab(/^Proposals:\s*(.+)$/),
-      interviewing: num(grab(/^Interviewing:\s*(\d+)/)),
-      invitesSent: num(grab(/^Invites sent:\s*(\d+)/)),
+      proposals: field(/^Proposals:\s*(.*)$/),
+      interviewing: num(field(/^Interviewing:\s*(.*)$/)),
+      invitesSent: num(field(/^Invites sent:\s*(.*)$/)),
     },
     client: {
       paymentVerified: client.some((l) => /^Payment method not verified/i.test(l))
@@ -112,6 +124,10 @@ export function parseJobText(title: string, text: string): JobData {
       jobsPosted: num(grab(/^(\d+)\s+jobs?\s+posted/i, client)),
       hireRate: grab(/^(\d+%)\s+hire rate/i, client),
       memberSince: grab(/^Member since\s+(.+)$/i, client),
+      rating: grab(/^Rating is ([\d.]+) out of 5/i, client),
+      totalSpent: grab(/^(\$[\d.,]+[KM]?)\s+total spent/i, client),
+      hires: num(grab(/^(\d+)\s+hires/i, client)),
+      avgHourlyRate: grab(/^(\$[\d.,]+)\s*\/hr avg hourly rate paid/i, client),
     },
   }
 }
