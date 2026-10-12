@@ -11,7 +11,7 @@ export default function CopyButton({ text }: { text: string }) {
         setTimeout(() => setDone(false), 1500)
       }}
     >
-      {done ? "Tersalin" : "Salin"}
+      {done ? "Copied" : "Copy"}
     </button>
   )
 }

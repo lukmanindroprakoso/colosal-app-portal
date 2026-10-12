@@ -2,14 +2,14 @@ import type { JobData } from "./types"
 
 export class ParseError extends Error {}
 
-const NOT_JOB = "Halaman ini bukan halaman detail job Upwork. Buka job yang ingin Anda lamar."
+const NOT_JOB = "This is not an Upwork job details page. Open the job you want to apply to."
 const BUDGET = /^\$[\d,]+(\.\d+)?(\s*-\s*\$[\d,]+(\.\d+)?)?$/
 const SKILLS_END = /^(Preferred qualifications|Activity on this job|Upgrade your membership)/i
 
 // Parses the visible text of a job detail page (document.body.innerText), anchored on the
 // page's own labels rather than CSS classes so Upwork markup changes break less often.
 export function parseJobText(title: string, text: string): JobData {
-  if (!title.trim()) throw new ParseError("Judul job tidak ditemukan.")
+  if (!title.trim()) throw new ParseError("Job title not found.")
 
   const lines = text
     .split("\n")

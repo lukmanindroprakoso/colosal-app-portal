@@ -29,6 +29,7 @@ Kriteria sukses: user yang sudah login di Colosal dapat membuka side panel di ha
 | Pilihan template | Dropdown **template** (`proposal_templates`), bukan scan config |
 | Jawaban pertanyaan | Bahan dari `user_profiles` (summary, current_role, previous_experience, skills_text, portfolio, key_proof_points, positioning_notes). `question_instruction` / `question_answer_base` milik scan config tidak dipakai |
 | Output optimize profile | Saran tertulis + Copy |
+| Bahasa UI | Inggris (sama dengan web app), termasuk pesan error API dan teks hasil AI |
 
 ## Backend
 

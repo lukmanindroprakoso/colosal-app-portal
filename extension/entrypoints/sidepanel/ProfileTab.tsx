@@ -17,11 +17,11 @@ export default function ProfileTab() {
     try {
       const r = await api.profile()
       if (!r.ok) {
-        throw new Error(r.status === "unauth" ? "Sesi berakhir. Login ulang di Colosal." : r.message)
+        throw new Error(r.status === "unauth" ? "Session expired. Sign in to Colosal again." : r.message)
       }
       setResult(r.data)
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Terjadi kesalahan. Coba lagi.")
+      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.")
     } finally {
       setBusy(false)
     }
@@ -29,23 +29,23 @@ export default function ProfileTab() {
 
   return (
     <>
-      <h2>Optimasi Profil</h2>
-      <p className="muted">Pindai profil Upwork Anda yang terhubung ke Colosal.</p>
+      <h2>Profile Optimization</h2>
+      <p className="muted">Scan your Upwork profile connected to Colosal.</p>
       <button className="btn" onClick={scan} disabled={busy}>
-        {busy ? "Memindai profil..." : "Start scan"}
+        {busy ? "Scanning profile..." : "Start scan"}
       </button>
       {error && <p className="err">{error}</p>}
 
       {result && (
         <>
           <section className="card">
-            <h3>Kelebihan</h3>
+            <h3>Strengths</h3>
             <ul>
               {result.report.strengths.map((s, i) => (
                 <li key={i}>{s}</li>
               ))}
             </ul>
-            <h3>Kekurangan</h3>
+            <h3>Weaknesses</h3>
             <ul>
               {result.report.weaknesses.map((s, i) => (
                 <li key={i}>{s}</li>

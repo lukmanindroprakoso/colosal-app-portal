@@ -17,7 +17,7 @@ export async function chatJson<T>(
   const key = process.env.SUMOPOD_API_KEY
   if (!base || !key) {
     console.error("missing SUMOPOD_BASE_URL or SUMOPOD_API_KEY")
-    throw new AiError(500, "Layanan AI belum dikonfigurasi.")
+    throw new AiError(500, "AI service is not configured.")
   }
 
   try {
@@ -35,7 +35,7 @@ export async function chatJson<T>(
     })
     if (!res.ok) {
       console.error("sumopod failed", res.status, await res.text().catch(() => ""))
-      throw new AiError(502, "Gagal membuat hasil. Coba lagi.")
+      throw new AiError(502, "Failed to generate the result. Please try again.")
     }
     const json = await res.json()
     return {
@@ -45,6 +45,6 @@ export async function chatJson<T>(
   } catch (e) {
     if (e instanceof AiError) throw e
     console.error("sumopod error", e)
-    throw new AiError(502, "Gagal membuat hasil. Coba lagi.")
+    throw new AiError(502, "Failed to generate the result. Please try again.")
   }
 }

@@ -44,7 +44,7 @@ export default function App() {
   if (auth.state === "loading") {
     return (
       <Shell>
-        <main className="p muted">Memuat...</main>
+        <main className="p muted">Loading...</main>
       </Shell>
     )
   }
@@ -53,8 +53,8 @@ export default function App() {
     return (
       <Shell>
         <main className="p">
-          <h1>Masuk ke Colosal</h1>
-          <p>Anda perlu login di Colosal untuk memakai extension ini.</p>
+          <h1>Sign in to Colosal</h1>
+          <p>You need to be signed in to Colosal to use this extension.</p>
           <div className="row">
             <button
               className="btn"
@@ -62,10 +62,10 @@ export default function App() {
                 chrome.tabs.create({ url: `${COLOSAL_URL}/login` })
               }
             >
-              Login ke Colosal
+              Sign in to Colosal
             </button>
             <button className="link" onClick={check}>
-              Periksa lagi
+              Check again
             </button>
           </div>
         </main>
@@ -79,7 +79,7 @@ export default function App() {
         <main className="p">
           <p className="err">{auth.message}</p>
           <button className="btn" onClick={check}>
-            Coba lagi
+            Try again
           </button>
         </main>
       </Shell>
@@ -99,7 +99,7 @@ export default function App() {
           className={tab === "profile" ? "on" : ""}
           onClick={() => setTab("profile")}
         >
-          Profil
+          Profile
         </button>
       </nav>
       <main className="p">

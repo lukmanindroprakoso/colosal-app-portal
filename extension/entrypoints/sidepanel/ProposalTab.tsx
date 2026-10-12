@@ -7,10 +7,10 @@ import type { ProposalResult, Rating, Template } from "../../lib/types"
 import CopyButton from "./CopyButton"
 
 const RATING_LABEL: Record<Rating, string> = {
-  good: "Baik",
-  neutral: "Netral",
-  poor: "Kurang",
-  unknown: "Tidak diketahui",
+  good: "Good",
+  neutral: "Neutral",
+  poor: "Poor",
+  unknown: "Unknown",
 }
 
 export default function ProposalTab({ templates }: { templates: Template[] }) {
@@ -25,9 +25,9 @@ export default function ProposalTab({ templates }: { templates: Template[] }) {
   if (templates.length === 0) {
     return (
       <>
-        <p>Anda belum memiliki template proposal.</p>
+        <p>You don't have any proposal templates yet.</p>
         <button className="btn" onClick={() => chrome.tabs.create({ url: `${COLOSAL_URL}/proposals` })}>
-          Buat template di Colosal
+          Create a template in Colosal
         </button>
       </>
     )
@@ -39,15 +39,15 @@ export default function ProposalTab({ templates }: { templates: Template[] }) {
     setResult(null)
     try {
       const snap = await snapshotActiveTab()
-      if (!snap) throw new Error("Buka halaman detail job di Upwork terlebih dahulu.")
+      if (!snap) throw new Error("Open a job details page on Upwork first.")
       const job = parseJobText(snap.title, snap.text)
       const r = await api.proposal(job, selected)
       if (!r.ok) {
-        throw new Error(r.status === "unauth" ? "Sesi berakhir. Login ulang di Colosal." : r.message)
+        throw new Error(r.status === "unauth" ? "Session expired. Sign in to Colosal again." : r.message)
       }
       setResult(r.data)
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Terjadi kesalahan. Coba lagi.")
+      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.")
     } finally {
       setBusy(false)
     }
@@ -59,12 +59,12 @@ export default function ProposalTab({ templates }: { templates: Template[] }) {
       <select value={selected} onChange={(e) => setTemplateId(e.target.value)} disabled={busy}>
         {templates.map((t) => (
           <option key={t.id} value={t.id}>
-            {t.name ?? "Tanpa nama"}
+            {t.name ?? "Untitled"}
           </option>
         ))}
       </select>
       <button className="btn" onClick={generate} disabled={busy}>
-        {busy ? "Membuat proposal..." : "Generate proposal"}
+        {busy ? "Generating proposal..." : "Generate proposal"}
       </button>
       {error && <p className="err">{error}</p>}
 
@@ -79,9 +79,9 @@ export default function ProposalTab({ templates }: { templates: Template[] }) {
           </section>
 
           <section className="card">
-            <h3>Jawaban Pertanyaan</h3>
+            <h3>Question Answers</h3>
             {result.questionAnswers.length === 0 ? (
-              <p className="muted">Job ini tidak memiliki pertanyaan.</p>
+              <p className="muted">This job has no screening questions.</p>
             ) : (
               result.questionAnswers.map((a, i) => (
                 <div key={i}>

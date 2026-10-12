@@ -12,15 +12,15 @@ async function call<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> 
       ...init,
       headers: { "Content-Type": "application/json", "X-Colosal-Ext": "1" },
     })
-    if (res.status === 401) return { ok: false, status: "unauth", message: "Anda belum login di Colosal." }
+    if (res.status === 401) return { ok: false, status: "unauth", message: "You are not signed in to Colosal." }
     const body = await res.json().catch(() => null)
     if (res.status === 429) {
-      return { ok: false, status: "limit", message: body?.error ?? "Batas penggunaan harian tercapai." }
+      return { ok: false, status: "limit", message: body?.error ?? "Daily usage limit reached." }
     }
-    if (!res.ok) return { ok: false, status: "error", message: body?.error ?? "Terjadi kesalahan. Coba lagi." }
+    if (!res.ok) return { ok: false, status: "error", message: body?.error ?? "Something went wrong. Please try again." }
     return { ok: true, data: body as T }
   } catch {
-    return { ok: false, status: "error", message: "Tidak dapat terhubung ke Colosal." }
+    return { ok: false, status: "error", message: "Could not connect to Colosal." }
   }
 }
 

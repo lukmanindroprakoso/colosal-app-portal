@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     .select("id, name")
     .eq("user_id", g.user.id)
     .order("created_at", { ascending: true })
-  if (error) return extJson(req, { error: "Gagal memuat template." }, 500)
+  if (error) return extJson(req, { error: "Failed to load templates." }, 500)
 
   return extJson(req, { templates: data ?? [] })
 }

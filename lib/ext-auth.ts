@@ -3,7 +3,7 @@ import { extJson } from "@/lib/ext-cors"
 
 const DAILY_LIMIT = { free: 10, paid: 100 }
 
-const UNAVAILABLE = "Layanan sedang bermasalah. Coba lagi."
+const UNAVAILABLE = "The service is having problems. Please try again."
 
 // Origin + session check; with `kind`, also fails with 429 when the daily limit is used up.
 // Fails closed (503) if the usage table cannot be read: the limit exists for cost control.
@@ -45,7 +45,7 @@ export async function extGuard(req: Request, kind?: "proposal" | "profile") {
     }
     if (count >= limit) {
       return {
-        error: extJson(req, { error: `Batas ${limit} permintaan per hari tercapai. Coba lagi besok.` }, 429),
+        error: extJson(req, { error: `Daily limit of ${limit} requests reached. Try again tomorrow.` }, 429),
       }
     }
   }
