@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest"
 import { ParseError, parseJobText } from "../lib/parse-job"
 import { JOB_TEXT, JOB_TITLE } from "./fixtures/job-fixed"
 
+const QUESTION_LINES = [
+  "Describe your recent experience with similar projects",
+  "Please list any certifications related to this project",
+  "What frameworks have you worked with?",
+  "Include a link to your GitHub profile and/or website",
+]
+
 describe("parseJobText", () => {
   it("parses a full fixed-price job page", () => {
     const job = parseJobText(JOB_TITLE, JOB_TEXT)
@@ -11,12 +18,7 @@ describe("parseJobText", () => {
     expect(job.budget).toBe("$2,500.00 Fixed-price")
     expect(job.experienceLevel).toBe("Expert")
     expect(job.projectType).toBe("Ongoing project")
-    expect(job.questions).toEqual([
-      "Describe your recent experience with similar projects",
-      "Please list any certifications related to this project",
-      "What frameworks have you worked with?",
-      "Include a link to your GitHub profile and/or website",
-    ])
+    expect(job.questions).toEqual(QUESTION_LINES)
     expect(job.skills).toEqual(["Stripe", "Supabase", "PostgreSQL", "JavaScript", "API Integration"])
     expect(job.englishLevel).toBe("Conversational")
     expect(job.connectsCost).toBe(13)
@@ -32,9 +34,21 @@ describe("parseJobText", () => {
 
   it("returns empty questions when the screening block is absent", () => {
     const text = JOB_TEXT.split("\n")
-      .filter((l) => !/^You will be asked|^\d\. /.test(l))
+      .filter((l) => !/^You will be asked/.test(l) && !QUESTION_LINES.includes(l))
       .join("\n")
     expect(parseJobText(JOB_TITLE, text).questions).toEqual([])
+  })
+
+  it("accepts numbered questions as well (markers present in the text)", () => {
+    const text = JOB_TEXT.split("\n")
+      .map((l) => (QUESTION_LINES.includes(l) ? `${QUESTION_LINES.indexOf(l) + 1}. ${l}` : l))
+      .join("\n")
+    expect(parseJobText(JOB_TITLE, text).questions).toEqual(QUESTION_LINES)
+  })
+
+  it("parses a budget range split over several lines", () => {
+    const text = JOB_TEXT.replace("$2,500.00\nFixed-price", "$9.00\n-\n$12.00\nHourly")
+    expect(parseJobText(JOB_TITLE, text).budget).toBe("$9.00 - $12.00 Hourly")
   })
 
   it("parses an hourly budget range", () => {

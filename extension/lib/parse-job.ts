@@ -4,6 +4,8 @@ export class ParseError extends Error {}
 
 const NOT_JOB = "This is not an Upwork job details page. Open the job you want to apply to."
 const BUDGET = /^\$[\d,]+(\.\d+)?(\s*-\s*\$[\d,]+(\.\d+)?)?$/
+const QUESTIONS_END =
+  /^(Skills and Expertise|Preferred qualifications|Activity on this job|About the client|Project Type:)/i
 const SKILLS_END = /^(Preferred qualifications|Activity on this job|Upgrade your membership)/i
 
 // Parses the visible text of a job detail page (document.body.innerText), anchored on the
@@ -11,10 +13,20 @@ const SKILLS_END = /^(Preferred qualifications|Activity on this job|Upgrade your
 export function parseJobText(title: string, text: string): JobData {
   if (!title.trim()) throw new ParseError("Job title not found.")
 
-  const lines = text
+  const raw = text
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean)
+  // Upwork can render a range as separate lines ("$9.00", "-", "$12.00"): merge them.
+  const lines: string[] = []
+  for (let i = 0; i < raw.length; i++) {
+    if (/^\$[\d,]+(\.\d+)?$/.test(raw[i]!) && raw[i + 1] === "-" && /^\$[\d,]+(\.\d+)?$/.test(raw[i + 2] ?? "")) {
+      lines.push(`${raw[i]} - ${raw[i + 2]}`)
+      i += 2
+    } else {
+      lines.push(raw[i]!)
+    }
+  }
   const idx = (re: RegExp, from = 0) => {
     for (let i = from; i < lines.length; i++) if (re.test(lines[i]!)) return i
     return -1
@@ -51,10 +63,10 @@ export function parseJobText(title: string, text: string): JobData {
   const questions: string[] = []
   const q = idx(/^You will be asked/)
   if (q !== -1) {
-    for (let i = q + 1; i < lines.length; i++) {
-      const m = lines[i]!.match(/^\d+\.\s+(.+)$/)
-      if (!m) break
-      questions.push(m[1]!)
+    // innerText drops list markers, so questions arrive unnumbered; strip a number if present.
+    for (let i = q + 1; i < lines.length && questions.length < 20 && !QUESTIONS_END.test(lines[i]!); i++) {
+      const text = lines[i]!.replace(/^\d+\.\s*/, "")
+      if (text) questions.push(text)
     }
   }
 
