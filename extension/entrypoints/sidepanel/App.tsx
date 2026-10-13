@@ -3,7 +3,7 @@ import { api } from "../../lib/api"
 import { isAuthCookieFor } from "../../lib/auth-cookie"
 import { COLOSAL_URL } from "../../lib/config"
 import { usePageKind } from "../../lib/use-page-kind"
-import { clearSession } from "../../lib/use-persistent-state"
+import { adoptSessionUser, clearSession } from "../../lib/use-persistent-state"
 import type { Template } from "../../lib/types"
 import Logo from "./Logo"
 import ProfileTab from "./ProfileTab"
@@ -52,10 +52,15 @@ export default function App() {
   const [auth, setAuth] = useState<Auth>({ state: "loading" })
   const [tab, setTab] = useState<"proposal" | "profile">("proposal")
   const kind = usePageKind()
+  // Bumped when another account signs in, so the tabs remount and show no results of the previous one.
+  const [epoch, setEpoch] = useState(0)
 
   const check = useCallback(async () => {
     const r = await api.templates()
-    if (r.ok) setAuth({ state: "ready", templates: r.data.templates })
+    if (r.ok) {
+      if (await adoptSessionUser(r.data.userId)) setEpoch((e) => e + 1)
+      setAuth({ state: "ready", templates: r.data.templates })
+    }
     else if (r.status === "unauth") {
       clearSession() // logged out: do not show the next account the previous results
       setAuth({ state: "unauth" })
@@ -150,9 +155,9 @@ export default function App() {
       </nav>
       <main className="p">
         {tab === "proposal" ? (
-          <ProposalTab templates={auth.templates} kind={kind} onChanged={check} />
+          <ProposalTab key={epoch} templates={auth.templates} kind={kind} onChanged={check} />
         ) : (
-          <ProfileTab kind={kind} />
+          <ProfileTab key={epoch} kind={kind} />
         )}
       </main>
     </Shell>

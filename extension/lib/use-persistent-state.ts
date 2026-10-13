@@ -31,5 +31,17 @@ export function usePersistentState<T>(key: string, initial: T) {
   return [value, setValue] as const
 }
 
+// Keeps results per account: when the signed-in user differs from the one the results belong to,
+// they are dropped. Returns true when that happened so the caller can remount what shows them.
+export async function adoptSessionUser(userId: string): Promise<boolean> {
+  const store = chrome.storage?.session
+  if (!store) return false
+  const { sessionUserId } = await store.get("sessionUserId")
+  const switched = typeof sessionUserId === "string" && sessionUserId !== userId
+  if (switched) await store.clear()
+  await store.set({ sessionUserId: userId })
+  return switched
+}
+
 // Drops every persisted result, e.g. when the user logs out, so the next account does not see them.
 export const clearSession = () => chrome.storage?.session?.clear()

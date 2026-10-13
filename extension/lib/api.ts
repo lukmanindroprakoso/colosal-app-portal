@@ -36,7 +36,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> 
 }
 
 export const api = {
-  templates: () => call<{ templates: Template[] }>("/api/ext/templates"),
+  templates: () => call<{ templates: Template[]; userId: string }>("/api/ext/templates"),
   proposal: (job: JobData, templateId: string) =>
     call<ProposalResult>("/api/ext/proposal", { method: "POST", body: JSON.stringify({ job, templateId }) }),
   reviseProposal: (job: JobData, templateId: string, feedback: string, previous: ProposalRevision) =>

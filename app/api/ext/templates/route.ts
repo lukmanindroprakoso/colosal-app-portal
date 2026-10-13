@@ -18,7 +18,8 @@ export async function GET(req: Request) {
     .order("created_at", { ascending: true })
   if (error) return extJson(req, { error: "Failed to load templates." }, 500)
 
-  return extJson(req, { templates: data ?? [] })
+  // userId lets the panel notice an account switch and drop the previous account's saved results.
+  return extJson(req, { templates: data ?? [], userId: g.user.id })
 }
 
 // Create (no id) or update (id) one of the user's templates. Deleting stays in the web app.
