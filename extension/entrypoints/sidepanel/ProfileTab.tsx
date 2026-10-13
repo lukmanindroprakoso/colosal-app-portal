@@ -4,8 +4,10 @@ import { looksLikeOwnProfile } from "../../lib/own-profile"
 import { pageKind, type PageKind } from "../../lib/page-kind"
 import { snapshotActiveTab } from "../../lib/page"
 import type { ProfileFields, ProfileResult } from "../../lib/types"
+import Benchmark from "./Benchmark"
 import CopyButton from "./CopyButton"
 import PageState from "./PageState"
+import ScoreCard from "./ScoreCard"
 
 type SaveState =
   | { step: "idle" }
@@ -82,14 +84,16 @@ export default function ProfileTab({ kind }: { kind: PageKind }) {
     setSave({ step: "reverted" })
   }
 
+  if (kind === "talent-search") return <Benchmark />
+
   if (kind !== "profile") {
     return (
       <PageState
-        title="Profile page required"
+        title="Profile or freelancer search page required"
         text={
           kind === "outside"
-            ? "Go to Upwork and open your profile to start a scan."
-            : "Open your Upwork profile to start a scan."
+            ? "Go to Upwork and open your profile to scan it, or a freelancer search page to benchmark it."
+            : "Open your Upwork profile to start a scan, or a freelancer search page to benchmark your profile."
         }
       />
     )
@@ -112,6 +116,8 @@ export default function ProfileTab({ kind }: { kind: PageKind }) {
 
       {result && (
         <>
+          <ScoreCard score={result.score} />
+
           <section className="card">
             <h3>Strengths</h3>
             <ul>

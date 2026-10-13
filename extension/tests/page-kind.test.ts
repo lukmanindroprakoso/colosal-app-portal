@@ -19,6 +19,12 @@ describe("pageKind", () => {
     expect(pageKind("https://www.upwork.com/nx/search/jobs/details/~022109535876375922640")).toBe("job")
   })
 
+  it("detects a freelancer search results page", () => {
+    expect(pageKind("https://www.upwork.com/nx/search/talent/?q=nextjs")).toBe("talent-search")
+    expect(pageKind("https://www.upwork.com/nx/search/talent/?q=react&page=2&hourly_rate=10-50")).toBe("talent-search")
+    expect(pageKind("https://www.upwork.com/nx/search/talent")).toBe("talent-search")
+  })
+
   it("treats other Upwork pages as other-upwork", () => {
     expect(pageKind("https://www.upwork.com/nx/find-work/")).toBe("other-upwork")
     expect(pageKind("https://www.upwork.com/nx/search/jobs/?q=react")).toBe("other-upwork")

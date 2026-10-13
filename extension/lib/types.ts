@@ -39,8 +39,32 @@ export type ProposalResult = {
 // Colosal profile columns (user_profiles) that profile suggestions map to.
 export type ProfileFields = { summary?: string; current_role?: string; skills_text?: string }
 
+export type ScoreItem = { key: string; label: string; points: number; max: number; note: string; evidence?: string }
+export type ScoreGroup = { points: number; max: number; items: ScoreItem[] }
+export type ProfileScore = {
+  total: number
+  label: "Needs work" | "Good" | "Strong"
+  completeness: ScoreGroup
+  quality: ScoreGroup
+}
+
+export type BenchmarkRow = {
+  key: string
+  label: string
+  you: string
+  top: string
+  verdict: "below" | "similar" | "above" | "good" | "missing" | "optional"
+}
+export type BenchmarkResult = {
+  sample: number
+  topRate: number | null
+  rows: BenchmarkRow[]
+  recommendations: string[]
+}
+
 export type ProfileResult = {
   report: { strengths: string[]; weaknesses: string[] }
   suggestions: { headline: string; overview: string; skills: string[] }
   yourHeadline: string | null
+  score: ProfileScore
 }

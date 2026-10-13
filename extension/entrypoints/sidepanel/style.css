@@ -91,3 +91,8 @@ li { margin-bottom: 8px; }
 .prompt-mark { background: color-mix(in oklch, var(--link) 18%, transparent); color: var(--link); border-radius: 4px; padding: 0 2px; }
 
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.quote { font-style: italic; font-size: 12px; margin-top: 2px; }
+.cmp { width: 100%; border-collapse: collapse; font-size: 12px; }
+.cmp th { text-align: left; font-weight: 600; color: var(--muted-foreground); padding: 4px 6px 6px 0; }
+.cmp td { padding: 6px 6px 6px 0; border-top: 1px solid var(--border); vertical-align: top; }

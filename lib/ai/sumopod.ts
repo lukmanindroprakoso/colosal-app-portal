@@ -11,7 +11,8 @@ export class AiError extends Error {
 
 export async function chatJson<T>(
   system: string,
-  user: string
+  user: string,
+  opts: { temperature?: number } = {}
 ): Promise<{ data: Partial<T>; tokens: number | null }> {
   const base = process.env.SUMOPOD_BASE_URL
   const key = process.env.SUMOPOD_API_KEY
@@ -27,6 +28,7 @@ export async function chatJson<T>(
       body: JSON.stringify({
         model: MODEL,
         response_format: { type: "json_object" },
+        ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
         messages: [
           { role: "system", content: system },
           { role: "user", content: user },
