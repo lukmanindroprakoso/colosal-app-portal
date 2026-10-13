@@ -6,7 +6,13 @@ import { snapshotActiveTab } from "../../lib/page"
 import { pageKind, type PageKind } from "../../lib/page-kind"
 import { parseJobText } from "../../lib/parse-job"
 import { splitPrompts } from "../../lib/prompt-markers"
-import type { JobData, ProposalResult, Rating, Template, TemplateInput } from "../../lib/types"
+import type {
+  JobData,
+  ProposalResult,
+  Rating,
+  Template,
+  TemplateInput,
+} from "../../lib/types"
 import CopyButton from "./CopyButton"
 import PageState from "./PageState"
 import TemplateForm from "./TemplateForm"
@@ -30,33 +36,26 @@ export default function ProposalTab({
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? "")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = usePersistentState<ProposalResult | null>("proposal.result", null)
-  const [form, setForm] = useState<TemplateInput | null>(null)
-  // Job and template the current result was generated for; revisions always refer to these.
-  const [generated, setGenerated] = usePersistentState<{ job: JobData; templateId: string } | null>(
-    "proposal.generated",
+  const [result, setResult] = usePersistentState<ProposalResult | null>(
+    "proposal.result",
     null
   )
+  const [form, setForm] = useState<TemplateInput | null>(null)
+  // Job and template the current result was generated for; revisions always refer to these.
+  const [generated, setGenerated] = usePersistentState<{
+    job: JobData
+    templateId: string
+  } | null>("proposal.generated", null)
   const [feedback, setFeedback] = usePersistentState("proposal.feedback", "")
   const [refining, setRefining] = useState(false)
 
   // Templates can refresh after mount (panel focus re-check); keep the selection valid.
   const current = templates.find((t) => t.id === templateId) ?? templates[0]
 
-  if (kind !== "job") {
-    return (
-      <PageState
-        title="Job details page required"
-        text={
-          kind === "outside"
-            ? "Go to Upwork and open a job details page to start generating a proposal."
-            : "Open a job details page on Upwork to start generating a proposal."
-        }
-      />
-    )
-  }
+  // Generating needs a job page; a result you already have stays visible on any page (e.g. the apply form).
+  const onJob = kind === "job"
 
-  if (form) {
+  if (form && onJob) {
     return (
       <TemplateForm
         initial={form}
@@ -70,17 +69,6 @@ export default function ProposalTab({
     )
   }
 
-  if (!current) {
-    return (
-      <>
-        <p>You don't have any proposal templates yet.</p>
-        <button className="btn" onClick={() => setForm({ ...DEFAULT_TEMPLATE })}>
-          New template
-        </button>
-      </>
-    )
-  }
-
   async function generate() {
     if (!current) return
     setBusy(true)
@@ -88,7 +76,8 @@ export default function ProposalTab({
     setResult(null)
     try {
       const snap = await snapshotActiveTab()
-      if (!snap || pageKind(snap.url) !== "job") throw new Error("Open a job details page on Upwork first.")
+      if (!snap || pageKind(snap.url) !== "job")
+        throw new Error("Open a job details page on Upwork first.")
       const job = parseJobText(snap.title, snap.text)
       const r = await api.proposal(job, current.id)
       if (r.ok) {
@@ -96,11 +85,19 @@ export default function ProposalTab({
         setFeedback("")
       }
       if (!r.ok) {
-        throw new Error(r.status === "unauth" ? "Session expired. Sign in to Colosal again." : r.message)
+        throw new Error(
+          r.status === "unauth"
+            ? "Session expired. Sign in to Colosal again."
+            : r.message
+        )
       }
       setResult(r.data)
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.")
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Something went wrong. Please try again."
+      )
     } finally {
       setBusy(false)
     }
@@ -114,20 +111,43 @@ export default function ProposalTab({
     try {
       const text = feedback.trim()
       if (text) {
-        const r = await api.reviseProposal(generated.job, generated.templateId, text, {
-          coverLetter: result.coverLetter,
-          questionAnswers: result.questionAnswers,
+        const r = await api.reviseProposal(
+          generated.job,
+          generated.templateId,
+          text,
+          {
+            coverLetter: result.coverLetter,
+            questionAnswers: result.questionAnswers,
+          }
+        )
+        if (!r.ok)
+          throw new Error(
+            r.status === "unauth"
+              ? "Session expired. Sign in to Colosal again."
+              : r.message
+          )
+        setResult({
+          ...result,
+          coverLetter: r.data.coverLetter,
+          questionAnswers: r.data.questionAnswers,
         })
-        if (!r.ok) throw new Error(r.status === "unauth" ? "Session expired. Sign in to Colosal again." : r.message)
-        setResult({ ...result, coverLetter: r.data.coverLetter, questionAnswers: r.data.questionAnswers })
         setFeedback("")
       } else {
         const r = await api.proposal(generated.job, generated.templateId)
-        if (!r.ok) throw new Error(r.status === "unauth" ? "Session expired. Sign in to Colosal again." : r.message)
+        if (!r.ok)
+          throw new Error(
+            r.status === "unauth"
+              ? "Session expired. Sign in to Colosal again."
+              : r.message
+          )
         setResult(r.data)
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.")
+      setError(
+        e instanceof Error
+          ? e.message
+          : "Something went wrong. Please try again."
+      )
     } finally {
       setRefining(false)
     }
@@ -135,64 +155,102 @@ export default function ProposalTab({
 
   return (
     <>
-      <div className="row">
-        <h2 style={{ margin: 0 }}>Template</h2>
-        <button className="link" onClick={() => setForm({ ...DEFAULT_TEMPLATE })} disabled={busy}>
-          New template
-        </button>
-      </div>
-      <select value={current.id} onChange={(e) => setTemplateId(e.target.value)} disabled={busy}>
-        {templates.map((t) => (
-          <option key={t.id} value={t.id}>
-            {t.name ?? "Untitled"}
-          </option>
-        ))}
-      </select>
-
-      <section className="card preview">
-        <div className="row">
-          <h3>Preview</h3>
-          <button
-            className="link"
-            onClick={() =>
-              setForm({
-                id: current.id,
-                name: current.name ?? "",
-                template: current.template,
-                ai_instruction: current.ai_instruction,
-              })
-            }
+      {onJob && current ? (
+        <>
+          <div className="row">
+            <h2 style={{ margin: 0 }}>Template</h2>
+            <button
+              className="link"
+              onClick={() => setForm({ ...DEFAULT_TEMPLATE })}
+              disabled={busy}
+            >
+              New template
+            </button>
+          </div>
+          <select
+            value={current.id}
+            onChange={(e) => setTemplateId(e.target.value)}
             disabled={busy}
           >
-            Edit
-          </button>
-        </div>
-        <pre>
-          {splitPrompts(current.template).map((p, i) =>
-            p.prompt ? (
-              <mark key={i} className="prompt-mark">
-                {p.text}
-              </mark>
-            ) : (
-              <span key={i}>{p.text}</span>
-            )
-          )}
-        </pre>
-        {current.ai_instruction && (
-          <p className="muted small">
-            <strong>AI instruction:</strong> {current.ai_instruction}
-          </p>
-        )}
-      </section>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name ?? "Untitled"}
+              </option>
+            ))}
+          </select>
 
-      <button className="btn" style={{ marginTop: 12 }} onClick={generate} disabled={busy || refining}>
-        {busy ? "Generating proposal..." : "Generate proposal"}
-      </button>
+          <section className="card preview">
+            <div className="row">
+              <h3>Preview</h3>
+              <button
+                className="link"
+                onClick={() =>
+                  setForm({
+                    id: current.id,
+                    name: current.name ?? "",
+                    template: current.template,
+                    ai_instruction: current.ai_instruction,
+                  })
+                }
+                disabled={busy}
+              >
+                Edit
+              </button>
+            </div>
+            <pre>
+              {splitPrompts(current.template).map((p, i) =>
+                p.prompt ? (
+                  <mark key={i} className="prompt-mark">
+                    {p.text}
+                  </mark>
+                ) : (
+                  <span key={i}>{p.text}</span>
+                )
+              )}
+            </pre>
+            {current.ai_instruction && (
+              <p className="muted small">
+                <strong>AI instruction:</strong> {current.ai_instruction}
+              </p>
+            )}
+          </section>
+
+          <button
+            className="btn"
+            style={{ marginTop: 12 }}
+            onClick={generate}
+            disabled={busy || refining}
+          >
+            {busy ? "Generating proposal..." : "Generate proposal"}
+          </button>
+        </>
+      ) : onJob ? (
+        <>
+          <p>You don't have any proposal templates yet.</p>
+          <button
+            className="btn"
+            onClick={() => setForm({ ...DEFAULT_TEMPLATE })}
+          >
+            New template
+          </button>
+        </>
+      ) : (
+        <PageState
+          title="Job details page required"
+          text={
+            kind === "outside"
+              ? "Go to Upwork and open a job details page to generate a proposal. Your latest result stays below."
+              : "Open a job details page on Upwork to generate a proposal. Your latest result stays below."
+          }
+        />
+      )}
       {error && <p className="err">{error}</p>}
 
       {result && (
         <>
-          {generated && <p className="muted small">Generated for: {generated.job.title}</p>}
+          {generated && (
+            <p className="muted small">Generated for: {generated.job.title}</p>
+          )}
           <section className="card">
             <div className="row">
               <h3>Cover Letter</h3>
@@ -220,11 +278,18 @@ export default function ProposalTab({
 
           <section className="card">
             <h3>Confidence Level</h3>
-            <div className="score">{result.confidence.score === null ? "-" : `${result.confidence.score}/100`}</div>
+            <div className="score">
+              {result.confidence.score === null
+                ? "-"
+                : `${result.confidence.score}/100`}
+            </div>
             <ul>
               {result.confidence.factors.map((f) => (
                 <li key={f.name}>
-                  <strong>{f.name}</strong> <span className={`badge ${f.rating}`}>{RATING_LABEL[f.rating]}</span>
+                  <strong>{f.name}</strong>{" "}
+                  <span className={`badge ${f.rating}`}>
+                    {RATING_LABEL[f.rating]}
+                  </span>
                   <div className="muted">{f.note}</div>
                 </li>
               ))}
@@ -234,7 +299,9 @@ export default function ProposalTab({
           <section className="card">
             <h3>Refine</h3>
             <label className="field" style={{ marginBottom: 8 }}>
-              <span className="visually-hidden">Describe the changes you want</span>
+              <span className="visually-hidden">
+                Describe the changes you want
+              </span>
               <textarea
                 rows={3}
                 maxLength={2000}
@@ -243,10 +310,20 @@ export default function ProposalTab({
                 onChange={(e) => setFeedback(e.target.value)}
                 disabled={refining}
               />
-              <span className="hint">Leave empty to generate a fresh version.</span>
+              <span className="hint">
+                Leave empty to generate a fresh version.
+              </span>
             </label>
-            <button className="btn" onClick={regenerate} disabled={refining || busy}>
-              {refining ? "Regenerating..." : feedback.trim() ? "Apply changes" : "Regenerate"}
+            <button
+              className="btn"
+              onClick={regenerate}
+              disabled={refining || busy}
+            >
+              {refining
+                ? "Regenerating..."
+                : feedback.trim()
+                  ? "Apply changes"
+                  : "Regenerate"}
             </button>
           </section>
         </>

@@ -17,7 +17,7 @@ const VERDICT: Record<BenchmarkRow["verdict"], { text: string; cls: string }> = 
 }
 
 // Compares the connected Upwork profile with the top freelancers on the open talent search page.
-export default function Benchmark() {
+export default function Benchmark({ canRun }: { canRun: boolean }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = usePersistentState<BenchmarkResult | null>("benchmark.result", null)
@@ -62,16 +62,23 @@ export default function Benchmark() {
     }
   }
 
+  // Off a talent search page there is nothing to run; only an existing result is worth showing.
+  if (!canRun && !result) return null
+
   return (
     <>
-      <h2>Benchmark</h2>
-      <p className="muted">
-        Compare your Upwork profile with the top freelancers on this search page (Job Success 90%+ and $5K+ earned).
-        Names are not sent or stored.
-      </p>
-      <button className="btn" onClick={run} disabled={busy || optimizing}>
-        {busy ? "Comparing..." : "Run benchmark"}
-      </button>
+      <h2 style={{ marginTop: canRun ? undefined : 20 }}>Benchmark</h2>
+      {canRun && (
+        <>
+          <p className="muted">
+            Compare your Upwork profile with the top freelancers on this search page (Job Success 90%+ and $5K+
+            earned). Names are not sent or stored.
+          </p>
+          <button className="btn" onClick={run} disabled={busy || optimizing}>
+            {busy ? "Comparing..." : "Run benchmark"}
+          </button>
+        </>
+      )}
       {error && <p className="err">{error}</p>}
 
       {result && (
