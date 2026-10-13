@@ -1,4 +1,5 @@
-export type Template = { id: string; name: string | null }
+export type Template = { id: string; name: string | null; template: string; ai_instruction: string }
+export type TemplateInput = { id?: string; name: string; template: string; ai_instruction: string }
 
 export type JobData = {
   title: string

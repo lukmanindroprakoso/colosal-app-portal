@@ -79,3 +79,13 @@ select:focus-visible, button:focus-visible { outline: 2px solid var(--ring); out
 .badge.poor { background: color-mix(in oklch, var(--destructive) 18%, transparent); color: var(--destructive); }
 ul { padding-left: 18px; margin: 4px 0 12px; line-height: 1.5; }
 li { margin-bottom: 8px; }
+
+.field { display: block; font-weight: 500; margin-bottom: 12px; }
+.field input, .field textarea { display: block; width: 100%; margin-top: 6px; padding: 9px 10px; border-radius: calc(var(--radius) * 0.8); border: 1px solid var(--input); background: var(--card); color: var(--foreground); font: inherit; font-weight: 400; }
+.field textarea { resize: vertical; line-height: 1.5; }
+.field input:focus-visible, .field textarea:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.hint { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; color: var(--muted-foreground); }
+.hint code { font-size: 12px; }
+.small { font-size: 12px; margin: 8px 0 0; }
+.preview pre { max-height: 220px; overflow: auto; }
+.prompt-mark { background: color-mix(in oklch, var(--link) 18%, transparent); color: var(--link); border-radius: 4px; padding: 0 2px; }

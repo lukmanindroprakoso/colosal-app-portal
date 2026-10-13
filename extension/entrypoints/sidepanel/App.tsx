@@ -146,7 +146,7 @@ export default function App() {
       </nav>
       <main className="p">
         {tab === "proposal" ? (
-          <ProposalTab templates={auth.templates} kind={kind} />
+          <ProposalTab templates={auth.templates} kind={kind} onChanged={check} />
         ) : (
           <ProfileTab kind={kind} />
         )}
