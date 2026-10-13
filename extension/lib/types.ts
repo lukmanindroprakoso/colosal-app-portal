@@ -25,6 +25,9 @@ export type JobData = {
   }
 }
 
+// Result of revising a draft: the confidence from the first generation is kept by the panel.
+export type ProposalRevision = Pick<ProposalResult, "coverLetter" | "questionAnswers">
+
 export type Rating = "good" | "neutral" | "poor" | "unknown"
 
 export type ProposalResult = {

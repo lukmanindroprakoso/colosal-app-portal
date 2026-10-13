@@ -1,5 +1,13 @@
 import { COLOSAL_URL } from "./config"
-import type { JobData, ProfileFields, ProfileResult, ProposalResult, Template, TemplateInput } from "./types"
+import type {
+  JobData,
+  ProfileFields,
+  ProfileResult,
+  ProposalResult,
+  ProposalRevision,
+  Template,
+  TemplateInput,
+} from "./types"
 
 export type ApiResult<T> =
   | { ok: true; data: T }
@@ -28,6 +36,11 @@ export const api = {
   templates: () => call<{ templates: Template[] }>("/api/ext/templates"),
   proposal: (job: JobData, templateId: string) =>
     call<ProposalResult>("/api/ext/proposal", { method: "POST", body: JSON.stringify({ job, templateId }) }),
+  reviseProposal: (job: JobData, templateId: string, feedback: string, previous: ProposalRevision) =>
+    call<ProposalRevision>("/api/ext/proposal", {
+      method: "POST",
+      body: JSON.stringify({ job, templateId, feedback, previous }),
+    }),
   saveTemplate: (input: TemplateInput) =>
     call<{ template: Template }>("/api/ext/templates", { method: "POST", body: JSON.stringify(input) }),
   profile: () => call<ProfileResult>("/api/ext/profile", { method: "POST" }),

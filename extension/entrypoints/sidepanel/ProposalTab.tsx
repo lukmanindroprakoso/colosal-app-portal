@@ -5,7 +5,7 @@ import { snapshotActiveTab } from "../../lib/page"
 import { pageKind, type PageKind } from "../../lib/page-kind"
 import { parseJobText } from "../../lib/parse-job"
 import { splitPrompts } from "../../lib/prompt-markers"
-import type { ProposalResult, Rating, Template, TemplateInput } from "../../lib/types"
+import type { JobData, ProposalResult, Rating, Template, TemplateInput } from "../../lib/types"
 import CopyButton from "./CopyButton"
 import PageState from "./PageState"
 import TemplateForm from "./TemplateForm"
@@ -31,6 +31,10 @@ export default function ProposalTab({
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ProposalResult | null>(null)
   const [form, setForm] = useState<TemplateInput | null>(null)
+  // Job and template the current result was generated for; revisions always refer to these.
+  const [generated, setGenerated] = useState<{ job: JobData; templateId: string } | null>(null)
+  const [feedback, setFeedback] = useState("")
+  const [refining, setRefining] = useState(false)
 
   // Templates can refresh after mount (panel focus re-check); keep the selection valid.
   const current = templates.find((t) => t.id === templateId) ?? templates[0]
@@ -83,6 +87,10 @@ export default function ProposalTab({
       if (!snap || pageKind(snap.url) !== "job") throw new Error("Open a job details page on Upwork first.")
       const job = parseJobText(snap.title, snap.text)
       const r = await api.proposal(job, current.id)
+      if (r.ok) {
+        setGenerated({ job, templateId: current.id })
+        setFeedback("")
+      }
       if (!r.ok) {
         throw new Error(r.status === "unauth" ? "Session expired. Sign in to Colosal again." : r.message)
       }
@@ -91,6 +99,33 @@ export default function ProposalTab({
       setError(e instanceof Error ? e.message : "Something went wrong. Please try again.")
     } finally {
       setBusy(false)
+    }
+  }
+
+  // With feedback: revise the visible draft. Without: a fresh version for the same job and template.
+  async function regenerate() {
+    if (!generated || !result) return
+    setRefining(true)
+    setError(null)
+    try {
+      const text = feedback.trim()
+      if (text) {
+        const r = await api.reviseProposal(generated.job, generated.templateId, text, {
+          coverLetter: result.coverLetter,
+          questionAnswers: result.questionAnswers,
+        })
+        if (!r.ok) throw new Error(r.status === "unauth" ? "Session expired. Sign in to Colosal again." : r.message)
+        setResult({ ...result, coverLetter: r.data.coverLetter, questionAnswers: r.data.questionAnswers })
+        setFeedback("")
+      } else {
+        const r = await api.proposal(generated.job, generated.templateId)
+        if (!r.ok) throw new Error(r.status === "unauth" ? "Session expired. Sign in to Colosal again." : r.message)
+        setResult(r.data)
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.")
+    } finally {
+      setRefining(false)
     }
   }
 
@@ -146,7 +181,7 @@ export default function ProposalTab({
         )}
       </section>
 
-      <button className="btn" style={{ marginTop: 12 }} onClick={generate} disabled={busy}>
+      <button className="btn" style={{ marginTop: 12 }} onClick={generate} disabled={busy || refining}>
         {busy ? "Generating proposal..." : "Generate proposal"}
       </button>
       {error && <p className="err">{error}</p>}
@@ -189,6 +224,25 @@ export default function ProposalTab({
                 </li>
               ))}
             </ul>
+          </section>
+
+          <section className="card">
+            <h3>Refine</h3>
+            <label className="field" style={{ marginBottom: 8 }}>
+              <span className="visually-hidden">Describe the changes you want</span>
+              <textarea
+                rows={3}
+                maxLength={2000}
+                value={feedback}
+                placeholder="Describe the changes you want, e.g. make it shorter and mention my Next.js experience"
+                onChange={(e) => setFeedback(e.target.value)}
+                disabled={refining}
+              />
+              <span className="hint">Leave empty to generate a fresh version.</span>
+            </label>
+            <button className="btn" onClick={regenerate} disabled={refining || busy}>
+              {refining ? "Regenerating..." : feedback.trim() ? "Apply changes" : "Regenerate"}
+            </button>
           </section>
         </>
       )}

@@ -89,3 +89,5 @@ li { margin-bottom: 8px; }
 .small { font-size: 12px; margin: 8px 0 0; }
 .preview pre { max-height: 220px; overflow: auto; }
 .prompt-mark { background: color-mix(in oklch, var(--link) 18%, transparent); color: var(--link); border-radius: 4px; padding: 0 2px; }
+
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
