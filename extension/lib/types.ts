@@ -62,6 +62,11 @@ export type BenchmarkResult = {
   recommendations: string[]
 }
 
+export type OptimizeResult = {
+  suggestions: { headline: string; overview: string; skills: string[] }
+  changes: string[]
+}
+
 export type ProfileResult = {
   report: { strengths: string[]; weaknesses: string[] }
   suggestions: { headline: string; overview: string; skills: string[] }

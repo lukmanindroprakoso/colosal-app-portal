@@ -102,3 +102,19 @@ export function compareToTop(own: Own, stats: BenchmarkStats): BenchmarkRow[] {
     trait("emoji", "Overview uses emoji", stats.emojiPct),
   ]
 }
+
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null)
+const text = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "")
+
+// Cards come from the browser: keep only the known fields, with sane types and sizes.
+export function cleanCards(raw: unknown): TalentCard[] {
+  return (Array.isArray(raw) ? raw : []).slice(0, 40).map((c) => ({
+    headline: text(c?.headline, 300),
+    rate: num(c?.rate),
+    jobSuccess: num(c?.jobSuccess),
+    earned: num(c?.earned),
+    skills: (Array.isArray(c?.skills) ? c.skills : []).slice(0, 40).map((s: unknown) => text(s, 60)),
+    extraSkills: Math.min(200, Math.max(0, Math.round(num(c?.extraSkills) ?? 0))),
+    overview: text(c?.overview, 3000),
+  }))
+}

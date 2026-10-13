@@ -2,8 +2,9 @@ import { useState } from "react"
 import { api } from "../../lib/api"
 import { snapshotActiveTab } from "../../lib/page"
 import { pageKind } from "../../lib/page-kind"
-import { parseTalentCards } from "../../lib/parse-talent"
-import type { BenchmarkResult, BenchmarkRow } from "../../lib/types"
+import { parseTalentCards, type TalentCard } from "../../lib/parse-talent"
+import type { BenchmarkResult, BenchmarkRow, OptimizeResult } from "../../lib/types"
+import Suggestions from "./Suggestions"
 
 const VERDICT: Record<BenchmarkRow["verdict"], { text: string; cls: string }> = {
   below: { text: "Below", cls: "poor" },
@@ -19,23 +20,44 @@ export default function Benchmark() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<BenchmarkResult | null>(null)
+  // The cards the result was computed from; the optimizer reuses them instead of re-reading the page.
+  const [cards, setCards] = useState<TalentCard[]>([])
+  const [optimizing, setOptimizing] = useState(false)
+  const [optimized, setOptimized] = useState<OptimizeResult | null>(null)
 
   async function run() {
     setBusy(true)
     setError(null)
     setResult(null)
+    setOptimized(null)
     try {
       const snap = await snapshotActiveTab()
       if (!snap || pageKind(snap.url) !== "talent-search") {
         throw new Error("Open a freelancer search results page on Upwork first.")
       }
-      const r = await api.benchmark(parseTalentCards(snap.text))
+      const parsed = parseTalentCards(snap.text)
+      const r = await api.benchmark(parsed)
       if (!r.ok) throw new Error(r.status === "unauth" ? "Session expired. Sign in to Colosal again." : r.message)
+      setCards(parsed)
       setResult(r.data)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong. Please try again.")
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function optimize() {
+    setOptimizing(true)
+    setError(null)
+    try {
+      const r = await api.optimizeWithBenchmark(cards)
+      if (!r.ok) throw new Error(r.status === "unauth" ? "Session expired. Sign in to Colosal again." : r.message)
+      setOptimized(r.data)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong. Please try again.")
+    } finally {
+      setOptimizing(false)
     }
   }
 
@@ -46,7 +68,7 @@ export default function Benchmark() {
         Compare your Upwork profile with the top freelancers on this search page (Job Success 90%+ and $5K+ earned).
         Names are not sent or stored.
       </p>
-      <button className="btn" onClick={run} disabled={busy}>
+      <button className="btn" onClick={run} disabled={busy || optimizing}>
         {busy ? "Comparing..." : "Run benchmark"}
       </button>
       {error && <p className="err">{error}</p>}
@@ -91,6 +113,24 @@ export default function Benchmark() {
               ))}
             </ul>
           </section>
+
+          {!optimized ? (
+            <button className="btn" style={{ marginTop: 12 }} onClick={optimize} disabled={optimizing || busy}>
+              {optimizing ? "Optimizing..." : "Optimize my profile with this benchmark"}
+            </button>
+          ) : (
+            <>
+              <section className="card">
+                <h3>What changed and why</h3>
+                <ul>
+                  {optimized.changes.map((c, i) => (
+                    <li key={i}>{c}</li>
+                  ))}
+                </ul>
+              </section>
+              <Suggestions suggestions={optimized.suggestions} />
+            </>
+          )}
         </>
       )}
     </>

@@ -3,6 +3,7 @@ import type { TalentCard } from "./parse-talent"
 import type {
   BenchmarkResult,
   JobData,
+  OptimizeResult,
   ProfileFields,
   ProfileResult,
   ProposalResult,
@@ -47,6 +48,8 @@ export const api = {
     call<{ template: Template }>("/api/ext/templates", { method: "POST", body: JSON.stringify(input) }),
   benchmark: (cards: TalentCard[]) =>
     call<BenchmarkResult>("/api/ext/benchmark", { method: "POST", body: JSON.stringify({ cards }) }),
+  optimizeWithBenchmark: (cards: TalentCard[]) =>
+    call<OptimizeResult>("/api/ext/profile/optimize", { method: "POST", body: JSON.stringify({ cards }) }),
   profile: () => call<ProfileResult>("/api/ext/profile", { method: "POST" }),
   saveProfile: (fields: ProfileFields) =>
     call<{ saved: true; previous: ProfileFields }>("/api/ext/profile/save", {

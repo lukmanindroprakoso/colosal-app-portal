@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { compareToTop, isTop, median, overviewTraits, summarize, type TalentCard } from "../../lib/upwork/benchmark"
+import {
+  cleanCards,
+  compareToTop,
+  isTop,
+  median,
+  overviewTraits,
+  summarize,
+  type TalentCard,
+} from "../../lib/upwork/benchmark"
 
 const card = (o: Partial<TalentCard> = {}): TalentCard => ({
   headline: "x".repeat(60),
@@ -88,5 +96,36 @@ describe("compareToTop", () => {
     const row = compareToTop(own(), withBullets).find((r) => r.key === "bullets")!
     expect(row).toMatchObject({ you: "No", top: "67% use it", verdict: "missing" })
     expect(compareToTop(own({ overview: "• a" }), withBullets).find((r) => r.key === "bullets")!.verdict).toBe("good")
+  })
+})
+
+describe("cleanCards", () => {
+  it("keeps only known fields with sane types and sizes", () => {
+    const [c] = cleanCards([
+      {
+        headline: "h".repeat(500),
+        rate: "10",
+        jobSuccess: 100,
+        earned: Number.NaN,
+        skills: ["a", 5, "b".repeat(100)],
+        extraSkills: 9999,
+        overview: "o".repeat(5000),
+        name: "Secret Name",
+      },
+    ])
+    expect(c!.headline).toHaveLength(300)
+    expect(c!.rate).toBeNull()
+    expect(c!.jobSuccess).toBe(100)
+    expect(c!.earned).toBeNull()
+    expect(c!.skills).toEqual(["a", "", "b".repeat(60)])
+    expect(c!.extraSkills).toBe(200)
+    expect(c!.overview).toHaveLength(3000)
+    expect(JSON.stringify(c)).not.toContain("Secret Name")
+  })
+
+  it("returns an empty list for non-arrays and caps the number of cards", () => {
+    expect(cleanCards(undefined)).toEqual([])
+    expect(cleanCards("x")).toEqual([])
+    expect(cleanCards(Array.from({ length: 100 }, () => ({})))).toHaveLength(40)
   })
 })

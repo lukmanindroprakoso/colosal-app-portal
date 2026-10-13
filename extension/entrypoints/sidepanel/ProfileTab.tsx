@@ -3,18 +3,11 @@ import { api } from "../../lib/api"
 import { looksLikeOwnProfile } from "../../lib/own-profile"
 import { pageKind, type PageKind } from "../../lib/page-kind"
 import { snapshotActiveTab } from "../../lib/page"
-import type { ProfileFields, ProfileResult } from "../../lib/types"
+import type { ProfileResult } from "../../lib/types"
 import Benchmark from "./Benchmark"
-import CopyButton from "./CopyButton"
 import PageState from "./PageState"
 import ScoreCard from "./ScoreCard"
-
-type SaveState =
-  | { step: "idle" }
-  | { step: "confirm" }
-  | { step: "saving" }
-  | { step: "saved"; previous: ProfileFields }
-  | { step: "reverted" }
+import Suggestions from "./Suggestions"
 
 export default function ProfileTab({ kind }: { kind: PageKind }) {
   const [busy, setBusy] = useState(false)
@@ -22,7 +15,6 @@ export default function ProfileTab({ kind }: { kind: PageKind }) {
   const [result, setResult] = useState<ProfileResult | null>(null)
   const [own, setOwn] = useState<boolean | null>(null)
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [save, setSave] = useState<SaveState>({ step: "idle" })
 
   const message = (r: { status: string; message: string }) =>
     r.status === "unauth" ? "Session expired. Sign in to Colosal again." : r.message
@@ -37,7 +29,6 @@ export default function ProfileTab({ kind }: { kind: PageKind }) {
     setError(null)
     setResult(null)
     setShowSuggestions(false)
-    setSave({ step: "idle" })
     try {
       const snap = await snapshotActiveTab()
       const r = await api.profile()
@@ -49,39 +40,6 @@ export default function ProfileTab({ kind }: { kind: PageKind }) {
     } finally {
       setBusy(false)
     }
-  }
-
-  async function saveToColosal() {
-    if (!result) return
-    setSave({ step: "saving" })
-    setError(null)
-    const r = await api.saveProfile({
-      summary: result.suggestions.overview,
-      current_role: result.suggestions.headline,
-      skills_text: result.suggestions.skills.join(", "),
-    })
-    if (!r.ok) {
-      setError(message(r))
-      setSave({ step: "confirm" })
-      return
-    }
-    setSave({ step: "saved", previous: r.data.previous })
-  }
-
-  async function undo() {
-    if (save.step !== "saved") return
-    // Previous values may be null in the database; write them back as empty text.
-    const p = save.previous
-    const r = await api.saveProfile({
-      summary: p.summary ?? "",
-      current_role: p.current_role ?? "",
-      skills_text: p.skills_text ?? "",
-    })
-    if (!r.ok) {
-      setError(message(r))
-      return
-    }
-    setSave({ step: "reverted" })
   }
 
   if (kind === "talent-search") return <Benchmark />
@@ -138,62 +96,7 @@ export default function ProfileTab({ kind }: { kind: PageKind }) {
               Optimize now
             </button>
           ) : (
-            <>
-              <section className="card">
-                <div className="row">
-                  <h3>Headline</h3>
-                  <CopyButton text={result.suggestions.headline} />
-                </div>
-                <pre>{result.suggestions.headline}</pre>
-              </section>
-              <section className="card">
-                <div className="row">
-                  <h3>Overview</h3>
-                  <CopyButton text={result.suggestions.overview} />
-                </div>
-                <pre>{result.suggestions.overview}</pre>
-              </section>
-              <section className="card">
-                <div className="row">
-                  <h3>Skills</h3>
-                  <CopyButton text={result.suggestions.skills.join(", ")} />
-                </div>
-                <pre>{result.suggestions.skills.join(", ")}</pre>
-              </section>
-
-              <section className="card">
-                {save.step === "idle" && (
-                  <button className="btn" onClick={() => setSave({ step: "confirm" })}>
-                    Save to Colosal profile
-                  </button>
-                )}
-                {(save.step === "confirm" || save.step === "saving") && (
-                  <>
-                    <p>
-                      This replaces the Summary, Current Role and Skills in your Colosal profile. Those fields are used
-                      to write your proposals.
-                    </p>
-                    <div className="row">
-                      <button className="btn" onClick={saveToColosal} disabled={save.step === "saving"}>
-                        {save.step === "saving" ? "Saving..." : "Replace"}
-                      </button>
-                      <button className="link" onClick={() => setSave({ step: "idle" })} disabled={save.step === "saving"}>
-                        Cancel
-                      </button>
-                    </div>
-                  </>
-                )}
-                {save.step === "saved" && (
-                  <div className="row">
-                    <span>Saved to your Colosal profile.</span>
-                    <button className="link" onClick={undo}>
-                      Undo
-                    </button>
-                  </div>
-                )}
-                {save.step === "reverted" && <p className="muted">Restored your previous Colosal profile.</p>}
-              </section>
-            </>
+            <Suggestions suggestions={result.suggestions} />
           )}
         </>
       )}
