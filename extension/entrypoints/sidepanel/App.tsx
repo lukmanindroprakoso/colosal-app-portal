@@ -72,11 +72,13 @@ export default function App() {
       clearTimeout(timer)
       timer = setTimeout(check, 400)
     }
-    chrome.cookies.onChanged.addListener(onCookie)
+    // chrome.cookies is undefined until Chrome has applied the "cookies" permission (extension
+    // not reloaded yet); the focus re-check above still covers login/logout then.
+    chrome.cookies?.onChanged.addListener(onCookie)
 
     return () => {
       window.removeEventListener("focus", check)
-      chrome.cookies.onChanged.removeListener(onCookie)
+      chrome.cookies?.onChanged.removeListener(onCookie)
       clearTimeout(timer)
     }
   }, [check])
