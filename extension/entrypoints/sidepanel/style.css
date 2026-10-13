@@ -69,6 +69,7 @@ select { width: 100%; padding: 9px 10px; border-radius: calc(var(--radius) * 0.8
 select:focus-visible, button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 
 .err { color: var(--destructive); margin: 12px 0 0; }
+.warn { color: oklch(0.769 0.188 70.08); margin: 12px 0 0; line-height: 1.5; }
 .muted { color: var(--muted-foreground); }
 .score { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
 .badge { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 999px; background: var(--muted); color: var(--muted-foreground); }

@@ -1,6 +1,8 @@
 import { useState } from "react"
 import { api } from "../../lib/api"
+import { looksLikeOwnProfile } from "../../lib/own-profile"
 import { pageKind, type PageKind } from "../../lib/page-kind"
+import { snapshotActiveTab } from "../../lib/page"
 import type { ProfileFields, ProfileResult } from "../../lib/types"
 import CopyButton from "./CopyButton"
 import PageState from "./PageState"
@@ -16,6 +18,7 @@ export default function ProfileTab({ kind }: { kind: PageKind }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ProfileResult | null>(null)
+  const [own, setOwn] = useState<boolean | null>(null)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [save, setSave] = useState<SaveState>({ step: "idle" })
 
@@ -34,9 +37,11 @@ export default function ProfileTab({ kind }: { kind: PageKind }) {
     setShowSuggestions(false)
     setSave({ step: "idle" })
     try {
+      const snap = await snapshotActiveTab()
       const r = await api.profile()
       if (!r.ok) throw new Error(message(r))
       setResult(r.data)
+      setOwn(looksLikeOwnProfile(snap?.text ?? "", r.data.yourHeadline))
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong. Please try again.")
     } finally {
@@ -98,6 +103,12 @@ export default function ProfileTab({ kind }: { kind: PageKind }) {
         {busy ? "Scanning profile..." : "Start scan"}
       </button>
       {error && <p className="err">{error}</p>}
+      {result && own === false && (
+        <p className="warn">
+          This page doesn't look like your Upwork profile. The results are for the profile connected to your Colosal
+          account.
+        </p>
+      )}
 
       {result && (
         <>

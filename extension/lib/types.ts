@@ -38,4 +38,5 @@ export type ProfileFields = { summary?: string; current_role?: string; skills_te
 export type ProfileResult = {
   report: { strengths: string[]; weaknesses: string[] }
   suggestions: { headline: string; overview: string; skills: string[] }
+  yourHeadline: string | null
 }

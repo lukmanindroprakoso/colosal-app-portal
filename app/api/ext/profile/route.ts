@@ -62,7 +62,9 @@ export async function POST(req: Request) {
     if (!report.strengths.length && !report.weaknesses.length) {
       return extJson(req, { error: "The AI result was incomplete. Please try again." }, 502)
     }
-    return extJson(req, { report, suggestions })
+    // The panel compares this against the open page to warn when it is not the user's own profile.
+    const title = (t.profile as { personalData?: { title?: unknown } }).personalData?.title
+    return extJson(req, { report, suggestions, yourHeadline: typeof title === "string" ? title.slice(0, 300) : null })
   } catch (e) {
     if (e instanceof AiError) return extJson(req, { error: e.message }, e.status)
     throw e
