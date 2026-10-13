@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { api } from "../../lib/api"
+import { isAuthCookieFor } from "../../lib/auth-cookie"
 import { COLOSAL_URL } from "../../lib/config"
 import { usePageKind } from "../../lib/use-page-kind"
 import type { Template } from "../../lib/types"
@@ -58,11 +59,26 @@ export default function App() {
     else setAuth({ state: "error", message: r.message })
   }, [])
 
-  // Re-check whenever the panel regains focus (e.g. after logging in in another tab).
+  // Re-check when the panel regains focus, and as soon as the website's session cookie changes
+  // (login or logout in any tab). Chunked cookies fire several events, so debounce.
   useEffect(() => {
     check()
     window.addEventListener("focus", check)
-    return () => window.removeEventListener("focus", check)
+
+    const host = new URL(COLOSAL_URL).hostname
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const onCookie = ({ cookie }: chrome.cookies.CookieChangeInfo) => {
+      if (!isAuthCookieFor(cookie, host)) return
+      clearTimeout(timer)
+      timer = setTimeout(check, 400)
+    }
+    chrome.cookies.onChanged.addListener(onCookie)
+
+    return () => {
+      window.removeEventListener("focus", check)
+      chrome.cookies.onChanged.removeListener(onCookie)
+      clearTimeout(timer)
+    }
   }, [check])
 
   if (auth.state === "loading") {
