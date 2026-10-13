@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { api } from "../../lib/api"
 import { COLOSAL_URL } from "../../lib/config"
+import { usePageKind } from "../../lib/use-page-kind"
 import type { Template } from "../../lib/types"
 import Logo from "./Logo"
 import ProfileTab from "./ProfileTab"
@@ -26,6 +27,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 export default function App() {
   const [auth, setAuth] = useState<Auth>({ state: "loading" })
   const [tab, setTab] = useState<"proposal" | "profile">("proposal")
+  const kind = usePageKind()
 
   const check = useCallback(async () => {
     const r = await api.templates()
@@ -104,9 +106,9 @@ export default function App() {
       </nav>
       <main className="p">
         {tab === "proposal" ? (
-          <ProposalTab templates={auth.templates} />
+          <ProposalTab templates={auth.templates} kind={kind} />
         ) : (
-          <ProfileTab />
+          <ProfileTab kind={kind} />
         )}
       </main>
     </Shell>

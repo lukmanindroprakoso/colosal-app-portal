@@ -1,7 +1,9 @@
 import { useState } from "react"
 import { api } from "../../lib/api"
+import { pageKind, type PageKind } from "../../lib/page-kind"
 import type { ProfileFields, ProfileResult } from "../../lib/types"
 import CopyButton from "./CopyButton"
+import PageState from "./PageState"
 
 type SaveState =
   | { step: "idle" }
@@ -10,7 +12,7 @@ type SaveState =
   | { step: "saved"; previous: ProfileFields }
   | { step: "reverted" }
 
-export default function ProfileTab() {
+export default function ProfileTab({ kind }: { kind: PageKind }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ProfileResult | null>(null)
@@ -21,6 +23,11 @@ export default function ProfileTab() {
     r.status === "unauth" ? "Session expired. Sign in to Colosal again." : r.message
 
   async function scan() {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    if (pageKind(tab?.url) !== "profile") {
+      setError("Open your Upwork profile first.")
+      return
+    }
     setBusy(true)
     setError(null)
     setResult(null)
@@ -70,10 +77,23 @@ export default function ProfileTab() {
     setSave({ step: "reverted" })
   }
 
+  if (kind !== "profile") {
+    return (
+      <PageState
+        title="Profile page required"
+        text={
+          kind === "outside"
+            ? "Go to Upwork and open your profile to start a scan."
+            : "Open your Upwork profile to start a scan."
+        }
+      />
+    )
+  }
+
   return (
     <>
       <h2>Profile Optimization</h2>
-      <p className="muted">Scan your Upwork profile connected to Colosal.</p>
+      <p className="muted">The scan always analyzes the Upwork profile connected to your Colosal account.</p>
       <button className="btn" onClick={scan} disabled={busy}>
         {busy ? "Scanning profile..." : "Start scan"}
       </button>

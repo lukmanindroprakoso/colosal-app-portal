@@ -2,9 +2,11 @@ import { useState } from "react"
 import { api } from "../../lib/api"
 import { COLOSAL_URL } from "../../lib/config"
 import { snapshotActiveTab } from "../../lib/page"
+import { pageKind, type PageKind } from "../../lib/page-kind"
 import { parseJobText } from "../../lib/parse-job"
 import type { ProposalResult, Rating, Template } from "../../lib/types"
 import CopyButton from "./CopyButton"
+import PageState from "./PageState"
 
 const RATING_LABEL: Record<Rating, string> = {
   good: "Good",
@@ -13,7 +15,7 @@ const RATING_LABEL: Record<Rating, string> = {
   unknown: "Unknown",
 }
 
-export default function ProposalTab({ templates }: { templates: Template[] }) {
+export default function ProposalTab({ templates, kind }: { templates: Template[]; kind: PageKind }) {
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? "")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -21,6 +23,19 @@ export default function ProposalTab({ templates }: { templates: Template[] }) {
 
   // Templates can refresh after mount (panel focus re-check); keep the selection valid.
   const selected = templates.some((t) => t.id === templateId) ? templateId : (templates[0]?.id ?? "")
+
+  if (kind !== "job") {
+    return (
+      <PageState
+        title="Job details page required"
+        text={
+          kind === "outside"
+            ? "Go to Upwork and open a job details page to start generating a proposal."
+            : "Open a job details page on Upwork to start generating a proposal."
+        }
+      />
+    )
+  }
 
   if (templates.length === 0) {
     return (
@@ -39,7 +54,7 @@ export default function ProposalTab({ templates }: { templates: Template[] }) {
     setResult(null)
     try {
       const snap = await snapshotActiveTab()
-      if (!snap) throw new Error("Open a job details page on Upwork first.")
+      if (!snap || pageKind(snap.url) !== "job") throw new Error("Open a job details page on Upwork first.")
       const job = parseJobText(snap.title, snap.text)
       const r = await api.proposal(job, selected)
       if (!r.ok) {
