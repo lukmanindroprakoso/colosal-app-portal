@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { usePersistentState } from "../../lib/use-persistent-state"
 import { api } from "../../lib/api"
 import { looksLikeOwnProfile } from "../../lib/own-profile"
 import { pageKind, type PageKind } from "../../lib/page-kind"
@@ -12,9 +13,9 @@ import Suggestions from "./Suggestions"
 export default function ProfileTab({ kind }: { kind: PageKind }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<ProfileResult | null>(null)
-  const [own, setOwn] = useState<boolean | null>(null)
-  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [result, setResult] = usePersistentState<ProfileResult | null>("profile.result", null)
+  const [own, setOwn] = usePersistentState<boolean | null>("profile.own", null)
+  const [showSuggestions, setShowSuggestions] = usePersistentState("profile.showSuggestions", false)
 
   const message = (r: { status: string; message: string }) =>
     r.status === "unauth" ? "Session expired. Sign in to Colosal again." : r.message
@@ -96,7 +97,7 @@ export default function ProfileTab({ kind }: { kind: PageKind }) {
               Optimize now
             </button>
           ) : (
-            <Suggestions suggestions={result.suggestions} />
+            <Suggestions suggestions={result.suggestions} storageKey="suggestions.profile" />
           )}
         </>
       )}

@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { usePersistentState } from "../../lib/use-persistent-state"
 import { api } from "../../lib/api"
 import { DEFAULT_TEMPLATE } from "../../lib/default-template"
 import { snapshotActiveTab } from "../../lib/page"
@@ -29,11 +30,14 @@ export default function ProposalTab({
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? "")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<ProposalResult | null>(null)
+  const [result, setResult] = usePersistentState<ProposalResult | null>("proposal.result", null)
   const [form, setForm] = useState<TemplateInput | null>(null)
   // Job and template the current result was generated for; revisions always refer to these.
-  const [generated, setGenerated] = useState<{ job: JobData; templateId: string } | null>(null)
-  const [feedback, setFeedback] = useState("")
+  const [generated, setGenerated] = usePersistentState<{ job: JobData; templateId: string } | null>(
+    "proposal.generated",
+    null
+  )
+  const [feedback, setFeedback] = usePersistentState("proposal.feedback", "")
   const [refining, setRefining] = useState(false)
 
   // Templates can refresh after mount (panel focus re-check); keep the selection valid.
@@ -188,6 +192,7 @@ export default function ProposalTab({
 
       {result && (
         <>
+          {generated && <p className="muted small">Generated for: {generated.job.title}</p>}
           <section className="card">
             <div className="row">
               <h3>Cover Letter</h3>

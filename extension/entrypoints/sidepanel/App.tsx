@@ -3,6 +3,7 @@ import { api } from "../../lib/api"
 import { isAuthCookieFor } from "../../lib/auth-cookie"
 import { COLOSAL_URL } from "../../lib/config"
 import { usePageKind } from "../../lib/use-page-kind"
+import { clearSession } from "../../lib/use-persistent-state"
 import type { Template } from "../../lib/types"
 import Logo from "./Logo"
 import ProfileTab from "./ProfileTab"
@@ -55,7 +56,10 @@ export default function App() {
   const check = useCallback(async () => {
     const r = await api.templates()
     if (r.ok) setAuth({ state: "ready", templates: r.data.templates })
-    else if (r.status === "unauth") setAuth({ state: "unauth" })
+    else if (r.status === "unauth") {
+      clearSession() // logged out: do not show the next account the previous results
+      setAuth({ state: "unauth" })
+    }
     else setAuth({ state: "error", message: r.message })
   }, [])
 

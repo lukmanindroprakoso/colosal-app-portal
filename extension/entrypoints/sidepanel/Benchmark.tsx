@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { usePersistentState } from "../../lib/use-persistent-state"
 import { api } from "../../lib/api"
 import { snapshotActiveTab } from "../../lib/page"
 import { pageKind } from "../../lib/page-kind"
@@ -19,11 +20,11 @@ const VERDICT: Record<BenchmarkRow["verdict"], { text: string; cls: string }> = 
 export default function Benchmark() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<BenchmarkResult | null>(null)
+  const [result, setResult] = usePersistentState<BenchmarkResult | null>("benchmark.result", null)
   // The cards the result was computed from; the optimizer reuses them instead of re-reading the page.
-  const [cards, setCards] = useState<TalentCard[]>([])
+  const [cards, setCards] = usePersistentState<TalentCard[]>("benchmark.cards", [])
   const [optimizing, setOptimizing] = useState(false)
-  const [optimized, setOptimized] = useState<OptimizeResult | null>(null)
+  const [optimized, setOptimized] = usePersistentState<OptimizeResult | null>("benchmark.optimized", null)
 
   async function run() {
     setBusy(true)
@@ -128,7 +129,7 @@ export default function Benchmark() {
                   ))}
                 </ul>
               </section>
-              <Suggestions suggestions={optimized.suggestions} />
+              <Suggestions suggestions={optimized.suggestions} storageKey="suggestions.benchmark" />
             </>
           )}
         </>
