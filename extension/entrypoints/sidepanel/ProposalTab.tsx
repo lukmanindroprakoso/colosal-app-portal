@@ -265,7 +265,7 @@ export default function ProposalTab({
               <p className="muted">This job has no screening questions.</p>
             ) : (
               result.questionAnswers.map((a, i) => (
-                <div key={i}>
+                <div key={i} className="qa">
                   <div className="row">
                     <strong>{a.question}</strong>
                     <CopyButton text={a.answer} />
@@ -298,7 +298,7 @@ export default function ProposalTab({
 
           <section className="card">
             <h3>Refine</h3>
-            <label className="field" style={{ marginBottom: 8 }}>
+            <label className="field">
               <span className="visually-hidden">
                 Describe the changes you want
               </span>
