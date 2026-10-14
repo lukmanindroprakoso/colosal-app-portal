@@ -19,7 +19,7 @@ export function DashboardSearch() {
   }
 
   return (
-    <form onSubmit={submit} className="flex w-full max-w-xl gap-2">
+    <form onSubmit={submit} className="mx-auto flex w-full max-w-xl gap-2">
       <Input
         value={keyword}
         onChange={(e) => setKeyword(e.target.value)}
