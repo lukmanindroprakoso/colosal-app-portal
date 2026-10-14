@@ -6,6 +6,7 @@ import { usePageKind } from "../../lib/use-page-kind"
 import { adoptSessionUser, clearSession } from "../../lib/use-persistent-state"
 import type { Template } from "../../lib/types"
 import Logo from "./Logo"
+import Benchmark from "./Benchmark"
 import ProfileTab from "./ProfileTab"
 import ProposalTab from "./ProposalTab"
 
@@ -50,8 +51,17 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const [auth, setAuth] = useState<Auth>({ state: "loading" })
-  const [tab, setTab] = useState<"proposal" | "profile">("proposal")
+  const [tab, setTab] = useState<"proposal" | "profile" | "benchmark">(
+    "proposal"
+  )
   const kind = usePageKind()
+
+  // Opening a job, your profile or a freelancer search jumps to the tab that works on it.
+  useEffect(() => {
+    if (kind === "job") setTab("proposal")
+    else if (kind === "profile") setTab("profile")
+    else if (kind === "talent-search") setTab("benchmark")
+  }, [kind])
   // Bumped when another account signs in, so the tabs remount and show no results of the previous one.
   const [epoch, setEpoch] = useState(0)
 
@@ -60,12 +70,10 @@ export default function App() {
     if (r.ok) {
       if (await adoptSessionUser(r.data.userId)) setEpoch((e) => e + 1)
       setAuth({ state: "ready", templates: r.data.templates })
-    }
-    else if (r.status === "unauth") {
+    } else if (r.status === "unauth") {
       clearSession() // logged out: do not show the next account the previous results
       setAuth({ state: "unauth" })
-    }
-    else setAuth({ state: "error", message: r.message })
+    } else setAuth({ state: "error", message: r.message })
   }, [])
 
   // Re-check when the panel regains focus, and as soon as the website's session cookie changes
@@ -152,12 +160,25 @@ export default function App() {
         >
           Profile
         </button>
+        <button
+          className={tab === "benchmark" ? "on" : ""}
+          onClick={() => setTab("benchmark")}
+        >
+          Benchmark
+        </button>
       </nav>
       <main className="p">
         {tab === "proposal" ? (
-          <ProposalTab key={epoch} templates={auth.templates} kind={kind} onChanged={check} />
-        ) : (
+          <ProposalTab
+            key={epoch}
+            templates={auth.templates}
+            kind={kind}
+            onChanged={check}
+          />
+        ) : tab === "profile" ? (
           <ProfileTab key={epoch} kind={kind} />
+        ) : (
+          <Benchmark key={epoch} kind={kind} />
         )}
       </main>
     </Shell>
