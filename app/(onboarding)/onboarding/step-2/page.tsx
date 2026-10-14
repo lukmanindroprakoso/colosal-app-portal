@@ -12,7 +12,7 @@ export default function OnboardingStep2() {
     `&redirect_uri=${process.env.NEXT_PUBLIC_SITE_URL}/auth/upwork/callback`
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-lg space-y-6">
         <div className="text-center space-y-1">
           <p className="text-sm text-muted-foreground">Step 2 of 3</p>

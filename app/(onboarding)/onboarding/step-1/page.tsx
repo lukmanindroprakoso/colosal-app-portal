@@ -60,7 +60,7 @@ export default function OnboardingStep1() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-lg space-y-6">
         <div className="text-center space-y-1">
           <p className="text-sm text-muted-foreground">Step 1 of 3</p>

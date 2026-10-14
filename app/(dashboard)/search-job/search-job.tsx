@@ -503,7 +503,7 @@ export function SearchJobClient({
                       <p className="font-medium">Skills you have</p>
                       <div className="flex flex-wrap gap-1.5">
                         {matched.map((s) => (
-                          <span key={s} className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-500">{s}</span>
+                          <span key={s} className="rounded-full bg-sky-400/15 px-2 py-0.5 text-xs text-sky-400">{s}</span>
                         ))}
                       </div>
                     </div>

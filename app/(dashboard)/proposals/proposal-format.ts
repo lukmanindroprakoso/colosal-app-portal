@@ -1,5 +1,5 @@
 export const PROPOSAL_STATUS_STYLES: Record<string, string> = {
-  Submitted: "bg-emerald-500/10 text-emerald-500",
+  Submitted: "bg-sky-400/10 text-sky-400",
   Draft: "bg-amber-500/10 text-amber-500",
 }
 

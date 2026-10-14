@@ -61,7 +61,7 @@ function CopyButton({ text, label, iconOnly = false }: { text: string; label: st
 
   return (
     <Button variant="outline" size={iconOnly ? "icon" : "sm"} onClick={handleCopy} aria-label={label}>
-      {copied ? <Check className="text-emerald-600" /> : <Copy />}
+      {copied ? <Check className="text-sky-400" /> : <Copy />}
       {iconOnly ? null : "Copy"}
     </Button>
   )

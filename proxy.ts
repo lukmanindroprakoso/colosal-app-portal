@@ -38,6 +38,7 @@ export async function proxy(request: NextRequest) {
     "/reset-password",
     "/auth/callback",
     "/auth/upwork/callback",
+    "/api/ext", // routes authenticate themselves and answer 401 JSON; preflight carries no cookie
   ]
   const isPublicPath = publicPaths.some((p) => pathname.startsWith(p))
 

@@ -183,7 +183,7 @@ export default function OnboardingStep3() {
   }
 
   return (
-    <div className="min-h-screen bg-background py-12 px-4">
+    <div className="min-h-screen py-12 px-4">
       <div className="mx-auto max-w-2xl space-y-8">
         <div className="text-center space-y-1">
           <p className="text-sm text-muted-foreground">Step 3 of 3</p>
