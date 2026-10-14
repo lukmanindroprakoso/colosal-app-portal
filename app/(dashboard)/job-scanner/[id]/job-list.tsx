@@ -124,7 +124,8 @@ export function JobList({
   activeTabTotal,
 }: JobListProps) {
   const router = useRouter()
-  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  // Which job is busy and with which action, so only the clicked button shows a spinner.
+  const [updating, setUpdating] = useState<{ id: string; action: "apply" | "dismiss" } | null>(null)
   const [templateSet, setTemplateSet] = useState(hasTemplate)
   const [pickJobId, setPickJobId] = useState<string | null>(null) // job waiting for a template choice
   const [templates, setTemplates] = useState<{ id: string; name: string | null }[] | null>(null)
@@ -133,17 +134,17 @@ export function JobList({
   const totalPages = Math.max(1, Math.ceil(activeTabTotal / pageSize))
 
   async function updateStatus(jobId: string, status: "Dismissed") {
-    setUpdatingId(jobId)
+    setUpdating({ id: jobId, action: "dismiss" })
     const supabase = createClient()
     const { error } = await supabase.from("upwork_jobs").update({ apply_status: status }).eq("id", jobId)
     if (error) {
       toast.error(error.message)
-      setUpdatingId(null)
+      setUpdating(null)
       return
     }
     track("job_dismiss")
     toast.success("Job dismissed")
-    setUpdatingId(null)
+    setUpdating(null)
     router.refresh()
   }
 
@@ -159,7 +160,7 @@ export function JobList({
       }
       return
     }
-    setUpdatingId(jobId)
+    setUpdating({ id: jobId, action: "apply" })
     const res = await fetch("/api/proposals/apply", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -168,7 +169,7 @@ export function JobList({
     const json = await res.json().catch(() => null)
     if (!res.ok) {
       toast.error(json?.error ?? "Failed to apply")
-      setUpdatingId(null)
+      setUpdating(null)
       return
     }
     track("job_apply")
@@ -204,7 +205,9 @@ export function JobList({
         <div className="space-y-3">
           {jobs.map((job) => {
             const jobUrl = safeJobUrl(job.url)
-            const isUpdating = updatingId === job.id
+            const isUpdating = updating?.id === job.id
+            const applying = isUpdating && updating?.action === "apply"
+            const dismissing = isUpdating && updating?.action === "dismiss"
 
             return (
               <div
@@ -262,7 +265,7 @@ export function JobList({
                     onClick={() => applyToJob(job.id)}
                     className="text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600"
                   >
-                    {isUpdating ? <Loader2 className="animate-spin" /> : "Apply"}
+                    {applying ? <Loader2 className="animate-spin" /> : "Apply"}
                   </Button>
                   <Button
                     variant="outline"
@@ -271,7 +274,7 @@ export function JobList({
                     onClick={() => updateStatus(job.id, "Dismissed")}
                     className="text-rose-600 hover:bg-rose-500/10 hover:text-rose-600"
                   >
-                    {isUpdating ? <Loader2 className="animate-spin" /> : "Dismiss"}
+                    {dismissing ? <Loader2 className="animate-spin" /> : "Dismiss"}
                   </Button>
                 </div>
               </div>
