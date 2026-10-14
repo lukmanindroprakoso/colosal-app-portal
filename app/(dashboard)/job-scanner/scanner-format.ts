@@ -11,7 +11,7 @@ export function timeAgo(iso: string | null): string {
 }
 
 export const STATUS_STYLES: Record<string, string> = {
-  Active: "bg-emerald-500/10 text-emerald-500",
+  Active: "bg-sky-400/10 text-sky-400",
   Inactive: "bg-muted text-muted-foreground",
   Draft: "bg-amber-500/10 text-amber-500",
   Failed: "bg-rose-500/10 text-rose-500",

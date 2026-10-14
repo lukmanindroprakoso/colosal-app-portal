@@ -47,7 +47,7 @@ export function AppHeader({ username, email }: AppHeaderProps) {
   }
 
   return (
-    <header className="flex h-14 items-center justify-between border-b bg-background px-6">
+    <header className="flex h-14 items-center justify-between border-b px-6">
       <h1 className="text-lg font-semibold">{pageTitle}</h1>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

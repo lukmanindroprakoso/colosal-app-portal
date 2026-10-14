@@ -15,9 +15,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const isPaid = sub?.plan === "paid" && sub.status !== "cancelled"
 
   return (
-    <div className="flex h-screen overflow-hidden bg-muted/30 p-3 gap-3">
+    <div className="flex h-screen overflow-hidden p-3 gap-3">
       <AppSidebar isPaid={isPaid} />
-      <div className="flex flex-1 flex-col overflow-hidden rounded-xl bg-background">
+      <div className="flex flex-1 flex-col overflow-hidden rounded-xl border bg-white/[0.03] backdrop-blur-sm">
         <AppHeader username={profile?.username} email={user.email} />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>

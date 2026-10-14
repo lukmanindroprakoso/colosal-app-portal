@@ -51,7 +51,7 @@ const TABS: ApplyStatusTab[] = ["All", "New", "Applied", "Dismissed"]
 
 const APPLY_STATUS_STYLES: Record<string, string> = {
   New: "bg-sky-500/10 text-sky-500",
-  Applied: "bg-emerald-500/10 text-emerald-500",
+  Applied: "bg-sky-400/10 text-sky-400",
   Dismissed: "bg-muted text-muted-foreground",
 }
 
@@ -74,7 +74,7 @@ function safeJobUrl(url: string | null): string | null {
 }
 
 function matchScoreStyle(score: number): string {
-  if (score >= 80) return "bg-emerald-500/15 text-emerald-500"
+  if (score >= 80) return "bg-sky-400/15 text-sky-400"
   if (score >= 50) return "bg-amber-500/15 text-amber-500"
   return "bg-rose-500/15 text-rose-500"
 }
@@ -263,7 +263,7 @@ export function JobList({
                     size="sm"
                     disabled={isUpdating || job.apply_status === "Applied"}
                     onClick={() => applyToJob(job.id)}
-                    className="text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600"
+                    className="text-sky-400 hover:bg-sky-400/10 hover:text-sky-400"
                   >
                     {applying ? <Loader2 className="animate-spin" /> : "Apply"}
                   </Button>
