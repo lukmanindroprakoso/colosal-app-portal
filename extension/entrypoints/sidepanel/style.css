@@ -1,43 +1,26 @@
 /* Tokens copied from the web app (app/globals.css): same palette, radius and font, light + dark. */
+/* Tokens match the web app (app/globals.css): dark base with a blue Gemini-style glow. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.148 0.004 228.8);
-  --card: oklch(1 0 0);
-  --primary: oklch(0.527 0.154 150.069);
-  --primary-foreground: oklch(0.982 0.018 155.826);
-  --muted: oklch(0.963 0.002 197.1);
-  --muted-foreground: oklch(0.56 0.021 213.5);
-  --accent: oklch(0.963 0.002 197.1);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.925 0.005 214.3);
-  --input: oklch(0.925 0.005 214.3);
-  --ring: oklch(0.723 0.014 214.4);
-  --link: oklch(0.527 0.154 150.069);
+  --background: oklch(0.13 0.02 265);
+  --foreground: oklch(0.97 0.005 250);
+  --card: oklch(1 0 0 / 5%);
+  --primary: oklch(0.65 0.19 252);
+  --primary-foreground: oklch(0.99 0 0);
+  --muted: oklch(1 0 0 / 7%);
+  --muted-foreground: oklch(0.72 0.03 255);
+  --accent: oklch(1 0 0 / 10%);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.65 0.19 252);
+  --link: oklch(0.72 0.16 245);
   --radius: 0.625rem;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.148 0.004 228.8);
-    --foreground: oklch(0.987 0.002 197.1);
-    --card: oklch(0.218 0.008 223.9);
-    --primary: oklch(0.448 0.119 151.328);
-    --muted: oklch(0.275 0.011 216.9);
-    --muted-foreground: oklch(0.723 0.014 214.4);
-    --accent: oklch(0.275 0.011 216.9);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.56 0.021 213.5);
-    --link: oklch(0.723 0.219 149.579);
-    color-scheme: dark;
-  }
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--background); color: var(--foreground); font-size: 14px; -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100vh; background: var(--background) radial-gradient(ellipse 100% 45% at 50% -10%, rgb(30 144 255 / 0.38), transparent 70%) fixed; color: var(--foreground); font-size: 14px; -webkit-font-smoothing: antialiased; }
 button { font: inherit; }
 button:not(:disabled) { cursor: pointer; }
 
@@ -45,7 +28,7 @@ button:not(:disabled) { cursor: pointer; }
 .icon-btn { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: calc(var(--radius) * 0.8); background: none; color: var(--muted-foreground); transition: color 150ms ease, background 150ms ease; }
 .icon-btn:hover { color: var(--foreground); background: var(--accent); }
 .logo { height: 22px; width: auto; color: var(--foreground); }
-.p { padding: 16px; }
+.p { padding: 16px 16px 24px; }
 
 h1, h2, h3 { margin: 0 0 8px; font-weight: 600; letter-spacing: -0.01em; }
 h1 { font-size: 18px; } h2 { font-size: 15px; } h3 { font-size: 13px; }
@@ -67,7 +50,7 @@ button.btn:disabled { opacity: 0.5; cursor: default; }
 button.link { border: 0; background: none; color: var(--link); padding: 0; font-weight: 500; }
 button.link:hover { text-decoration: underline; }
 
-select { width: 100%; padding: 9px 10px; border-radius: calc(var(--radius) * 0.8); border: 1px solid var(--input); background: var(--card); color: var(--foreground); margin: 0 0 12px; font: inherit; }
+select { width: 100%; padding: 9px 10px; border-radius: calc(var(--radius) * 0.8); border: 1px solid var(--input); background: var(--card); color-scheme: dark; color: var(--foreground); margin: 0; font: inherit; }
 select:focus-visible, button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 
 .err { color: var(--destructive); margin: 12px 0 0; }
@@ -78,13 +61,14 @@ select:focus-visible, button:focus-visible { outline: 2px solid var(--ring); out
 .badge.good { background: color-mix(in oklch, var(--link) 18%, transparent); color: var(--link); }
 .badge.poor { background: color-mix(in oklch, var(--destructive) 18%, transparent); color: var(--destructive); }
 ul { padding-left: 18px; margin: 4px 0 12px; line-height: 1.5; }
-li { margin-bottom: 8px; }
+li { margin-bottom: 10px; }
+li:last-child { margin-bottom: 0; }
 
 .field { display: block; font-weight: 500; margin-bottom: 12px; }
 .field input, .field textarea { display: block; width: 100%; margin-top: 6px; padding: 9px 10px; border-radius: calc(var(--radius) * 0.8); border: 1px solid var(--input); background: var(--card); color: var(--foreground); font: inherit; font-weight: 400; }
 .field textarea { resize: vertical; line-height: 1.5; }
 .field input:focus-visible, .field textarea:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
-.hint { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; color: var(--muted-foreground); }
+.hint { display: block; margin-top: 6px; font-size: 12px; font-weight: 400; color: var(--muted-foreground); }
 .hint code { font-size: 12px; }
 .small { font-size: 12px; margin: 8px 0 0; }
 .preview pre { max-height: 220px; overflow: auto; }
@@ -94,5 +78,15 @@ li { margin-bottom: 8px; }
 
 .quote { font-style: italic; font-size: 12px; margin-top: 2px; }
 .cmp { width: 100%; border-collapse: collapse; font-size: 12px; }
-.cmp th { text-align: left; font-weight: 600; color: var(--muted-foreground); padding: 4px 6px 6px 0; }
-.cmp td { padding: 6px 6px 6px 0; border-top: 1px solid var(--border); vertical-align: top; }
+.cmp th { text-align: left; font-weight: 600; color: var(--muted-foreground); padding: 4px 10px 8px 0; }
+.cmp td { padding: 8px 10px 8px 0; border-top: 1px solid var(--border); vertical-align: top; }
+.cmp th:last-child, .cmp td:last-child { padding-right: 0; }
+
+/* Spacing rhythm: 12px between blocks, 16px between groups inside a card, no trailing space at a card's end. */
+.card h3:not(:first-child) { margin-top: 16px; }
+.card .warn { margin: 0 0 12px; }
+.card > .small { margin-bottom: 8px; }
+.card > :last-child, .card > :last-child > :last-child { margin-bottom: 0; }
+.qa + .qa { margin-top: 14px; }
+.qa pre { margin: 4px 0 0; }
+.row + select { margin-top: 8px; }
