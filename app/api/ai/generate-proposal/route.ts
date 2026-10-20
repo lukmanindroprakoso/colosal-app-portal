@@ -1,7 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
+import { chatJson } from "@/lib/ai/sumopod"
+import { HUMAN_STYLE, refineProposal, type Draft, type Progress } from "@/lib/ai/refine"
 
-const MODEL = "gpt-4o-mini"
+type QA = { question: string; answer: string }
+type GeneratedDraft = Draft & { attachmentIds: string[] }
 
 // LLM call can exceed the platform default timeout, which returns an empty body
 export const maxDuration = 60
@@ -72,7 +75,9 @@ export async function POST(request: Request) {
 
 Cover letter: rewrite the template, replacing each [prompt]...[/prompt] section with content tailored to the job using the freelancer's background. Keep everything else verbatim. No markers in the output.
 Question answers: one entry per screening question listed below, answered using the freelancer's answer knowledge. Empty array if no questions.
-Attachment ids: pick only candidate ids genuinely relevant to this job from the "Candidate attachments" list. Empty array if none fit.`
+Attachment ids: pick only candidate ids genuinely relevant to this job from the "Candidate attachments" list. Empty array if none fit.
+
+${HUMAN_STYLE}`
 
   const userPrompt = `Job title: ${job.title ?? "Untitled"}
 Job description: ${job.description ?? "N/A"}
@@ -103,65 +108,107 @@ ${candidates?.length ? candidates.map((a) => `${a.id}: ${a.file_name ?? "Untitle
     return NextResponse.json({ error: "AI service not configured" }, { status: 500 })
   }
 
-  let json: any
-  let parsed: {
-    coverLetter?: string
-    questionAnswers?: { question: string; answer: string }[]
-    attachmentIds?: string[]
-  }
-  try {
-    const res = await fetch(`${process.env.SUMOPOD_BASE_URL}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.SUMOPOD_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-      }),
-    })
+  type Parsed = { coverLetter?: string; questionAnswers?: QA[]; attachmentIds?: string[] }
+  const validCandidateIds = new Set((candidates ?? []).map((a) => a.id))
+  const toDraft = (p: Parsed): GeneratedDraft => ({
+    coverLetter: p.coverLetter ?? "",
+    questionAnswers: p.questionAnswers ?? [],
+    attachmentIds: (p.attachmentIds ?? []).filter((id) => validCandidateIds.has(id)),
+  })
 
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "")
-      console.error("sumopod generation failed", res.status, errText)
-      return NextResponse.json({ error: "AI generation failed" }, { status: 502 })
+  // Does the work; `emit` reports each step so a streaming client can show what is happening.
+  async function generate(emit: (p: Progress) => void) {
+    emit({ step: "generate" })
+    let first: { data: Parsed; tokens: number | null }
+    try {
+      first = await chatJson<Parsed>(systemPrompt, userPrompt)
+    } catch (e) {
+      console.error("sumopod generation error", e)
+      throw new Error("AI generation failed")
     }
 
-    json = await res.json()
-    parsed = JSON.parse(json?.choices?.[0]?.message?.content?.trim() ?? "{}")
-  } catch (e) {
-    console.error("sumopod generation error", e)
-    return NextResponse.json({ error: "AI generation failed" }, { status: 502 })
+    let draft = toDraft(first.data)
+    let totalTokenUsed = first.tokens
+    // Multi-layer check: human-sounding, freelancer quality and client reviewers, with rewrites on failure.
+    if (draft.coverLetter.trim()) {
+      try {
+        const refined = await refineProposal<GeneratedDraft>(
+          `Title: ${job!.title ?? "Untitled"}\nDescription: ${job!.description ?? "N/A"}\nScreening questions:\n${screeningQuestions.join("\n") || "None"}`,
+          { draft, tokens: totalTokenUsed },
+          async (feedback, prev) => {
+            const r = await chatJson<Parsed>(
+              systemPrompt,
+              `${userPrompt}
+
+Previous draft:
+<previous_draft>
+${JSON.stringify(prev)}
+</previous_draft>
+
+Rewrite the draft and apply this reviewer feedback. Keep what the reviewers did not criticise. Do not invent facts about the freelancer.
+<reviewer_feedback>
+${feedback}
+</reviewer_feedback>`
+            )
+            return { draft: toDraft(r.data), tokens: r.tokens }
+          },
+          emit
+        )
+        draft = refined.draft
+        totalTokenUsed = refined.tokens
+      } catch (e) {
+        console.error("proposal refinement failed", e)
+      }
+    }
+
+    emit({ step: "save" })
+    const generatedAt = new Date().toISOString()
+    await supabase
+      .from("proposals")
+      .update({
+        cover_letter_generated: draft.coverLetter || null,
+        question_answer: draft.questionAnswers,
+        attachment: draft.attachmentIds,
+        last_generated_at: generatedAt,
+        total_token_used: totalTokenUsed,
+      })
+      .eq("id", proposalId)
+
+    return {
+      cover_letter_generated: draft.coverLetter || null,
+      question_answer: draft.questionAnswers,
+      attachments: (candidates ?? [])
+        .filter((a) => draft.attachmentIds.includes(a.id))
+        .map((a) => ({ id: a.id, file_name: a.file_name })),
+      last_generated_at: generatedAt,
+      total_token_used: totalTokenUsed,
+    }
   }
 
-  const validCandidateIds = new Set((candidates ?? []).map((a) => a.id))
-  const attachmentIds = (parsed.attachmentIds ?? []).filter((id) => validCandidateIds.has(id))
-  const totalTokenUsed = json?.usage?.total_tokens ?? null
+  const message = (e: unknown) => (e instanceof Error ? e.message : "AI generation failed")
 
-  await supabase
-    .from("proposals")
-    .update({
-      cover_letter_generated: parsed.coverLetter ?? null,
-      question_answer: parsed.questionAnswers ?? [],
-      attachment: attachmentIds,
-      last_generated_at: new Date().toISOString(),
-      total_token_used: totalTokenUsed,
-    })
-    .eq("id", proposalId)
+  if (!body?.stream) {
+    try {
+      return NextResponse.json(await generate(() => {}))
+    } catch (e) {
+      return NextResponse.json({ error: message(e) }, { status: 502 })
+    }
+  }
 
-  return NextResponse.json({
-    cover_letter_generated: parsed.coverLetter ?? null,
-    question_answer: parsed.questionAnswers ?? [],
-    attachments: (candidates ?? []).filter((a) => attachmentIds.includes(a.id)).map((a) => ({
-      id: a.id,
-      file_name: a.file_name,
-    })),
-    last_generated_at: new Date().toISOString(),
-    total_token_used: totalTokenUsed,
+  // Newline-delimited JSON: progress events, then one "done" or "error".
+  const enc = new TextEncoder()
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (o: object) => controller.enqueue(enc.encode(JSON.stringify(o) + "\n"))
+      try {
+        send({ type: "done", result: await generate((p) => send({ type: "progress", ...p })) })
+      } catch (e) {
+        send({ type: "error", error: message(e) })
+      }
+      controller.close()
+    },
+  })
+  return new Response(stream, {
+    headers: { "Content-Type": "application/x-ndjson", "Cache-Control": "no-store" },
   })
 }

@@ -90,3 +90,9 @@ li:last-child { margin-bottom: 0; }
 .qa + .qa { margin-top: 14px; }
 .qa pre { margin: 4px 0 0; }
 .row + select { margin-top: 8px; }
+
+.steps { list-style: none; padding: 0; margin: 12px 0 0; font-size: 13px; display: grid; gap: 6px; }
+.steps li { color: var(--muted-foreground); }
+.steps li.active { color: var(--foreground); }
+.steps li.warn { color: #d97706; }
+.steps .mark { display: inline-block; width: 1.2em; }

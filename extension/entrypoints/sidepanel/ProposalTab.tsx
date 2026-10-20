@@ -8,6 +8,7 @@ import { parseJobText } from "../../lib/parse-job"
 import { splitPrompts } from "../../lib/prompt-markers"
 import type {
   JobData,
+  ProposalProgress,
   ProposalResult,
   Rating,
   Template,
@@ -23,6 +24,29 @@ const RATING_LABEL: Record<Rating, string> = {
   poor: "Poor",
   unknown: "Unknown",
 }
+
+interface Step {
+  label: string
+  status: "active" | "done" | "warn"
+}
+
+function nextSteps(prev: Step[], e: ProposalProgress): Step[] {
+  if (e.step === "reviewed") {
+    const label = e.failed.length ? `Needs changes (${e.failed.join(", ")})` : "All checks passed"
+    return [...prev.slice(0, -1), { label, status: e.failed.length ? "warn" : "done" }]
+  }
+  const label =
+    e.step === "generate"
+      ? "Writing the first draft"
+      : e.step === "review"
+        ? "Running human, freelancer and client checks"
+        : e.step === "revise"
+          ? "Rewriting with reviewer feedback"
+          : "Finishing"
+  return [...prev.map((s): Step => (s.status === "active" ? { ...s, status: "done" } : s)), { label, status: "active" }]
+}
+
+const STEP_MARK = { active: "…", done: "✓", warn: "↻" }
 
 export default function ProposalTab({
   templates,
@@ -48,6 +72,8 @@ export default function ProposalTab({
   } | null>("proposal.generated", null)
   const [feedback, setFeedback] = usePersistentState("proposal.feedback", "")
   const [refining, setRefining] = useState(false)
+  const [steps, setSteps] = useState<Step[]>([])
+  const onProgress = (e: ProposalProgress) => setSteps((s) => nextSteps(s, e))
 
   // Templates can refresh after mount (panel focus re-check); keep the selection valid.
   const current = templates.find((t) => t.id === templateId) ?? templates[0]
@@ -74,12 +100,13 @@ export default function ProposalTab({
     setBusy(true)
     setError(null)
     setResult(null)
+    setSteps([])
     try {
       const snap = await snapshotActiveTab()
       if (!snap || pageKind(snap.url) !== "job")
         throw new Error("Open a job details page on Upwork first.")
       const job = parseJobText(snap.title, snap.text)
-      const r = await api.proposal(job, current.id)
+      const r = await api.proposal(job, current.id, onProgress)
       if (r.ok) {
         setGenerated({ job, templateId: current.id })
         setFeedback("")
@@ -108,6 +135,7 @@ export default function ProposalTab({
     if (!generated || !result) return
     setRefining(true)
     setError(null)
+    setSteps([])
     try {
       const text = feedback.trim()
       if (text) {
@@ -133,7 +161,7 @@ export default function ProposalTab({
         })
         setFeedback("")
       } else {
-        const r = await api.proposal(generated.job, generated.templateId)
+        const r = await api.proposal(generated.job, generated.templateId, onProgress)
         if (!r.ok)
           throw new Error(
             r.status === "unauth"
@@ -243,6 +271,15 @@ export default function ProposalTab({
               : "Open a job details page on Upwork to generate a proposal. Your latest result stays below."
           }
         />
+      )}
+      {(busy || refining) && steps.length > 0 && (
+        <ol className="steps">
+          {steps.map((s, i) => (
+            <li key={i} className={s.status}>
+              <span className="mark">{STEP_MARK[s.status]}</span> {s.label}
+            </li>
+          ))}
+        </ol>
       )}
       {error && <p className="err">{error}</p>}
 
