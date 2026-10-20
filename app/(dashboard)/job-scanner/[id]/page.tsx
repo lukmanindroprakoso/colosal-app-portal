@@ -186,7 +186,7 @@ export default async function ScannerDetailPage({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[340px_1fr] lg:items-start">
         <ConfigSummary config={configDetail} isPaid={access.isPaid} telegramConnected={access.telegramConnected} />
         <div className="flex min-w-0 flex-col gap-4">
-          <ScanChart days={dailyCounts} />
+          <ScanChart scanConfigId={id} days={dailyCounts} />
           <JobListTabs scanConfigId={id} counts={counts} activeTab={activeTab} />
           <JobList
             scanConfigId={id}

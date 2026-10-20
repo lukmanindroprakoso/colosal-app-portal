@@ -28,6 +28,14 @@ export type JobData = {
 // Result of revising a draft: the confidence from the first generation is kept by the panel.
 export type ProposalRevision = Pick<ProposalResult, "coverLetter" | "questionAnswers">
 
+// Progress events the proposal endpoint streams while it checks and rewrites a draft.
+export type ProposalProgress =
+  | { step: "generate" }
+  | { step: "review"; round: number }
+  | { step: "reviewed"; round: number; failed: string[] }
+  | { step: "revise"; round: number }
+  | { step: "save" }
+
 export type Rating = "good" | "neutral" | "poor" | "unknown"
 
 export type ProposalResult = {

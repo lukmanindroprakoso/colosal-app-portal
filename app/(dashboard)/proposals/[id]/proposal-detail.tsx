@@ -17,6 +17,7 @@ import {
   Loader2,
   RefreshCw,
 } from "lucide-react"
+import type { Progress as ProgressEvent } from "@/lib/ai/refine"
 import { PROPOSAL_STATUS_STYLES, formatProposalDateTime } from "../proposal-format"
 
 export interface QAPair {
@@ -43,6 +44,11 @@ export interface ProposalDetailData {
     client_country: string | null
     skills: string[]
   } | null
+}
+
+interface Step {
+  label: string
+  status: "active" | "done" | "warn"
 }
 
 function CopyButton({ text, label, iconOnly = false }: { text: string; label: string; iconOnly?: boolean }) {
@@ -88,23 +94,72 @@ export function ProposalDetail({ data }: { data: ProposalDetailData }) {
   const [detailsOpen, setDetailsOpen] = useState(true)
   const [detail, setDetail] = useState(data)
   const [generating, setGenerating] = useState(false)
+  const [steps, setSteps] = useState<Step[]>([])
+
+  function onProgress(e: ProgressEvent) {
+    setSteps((prev) => {
+      const done = prev.map((s) => (s.status === "active" ? { ...s, status: "done" as const } : s))
+      if (e.step === "reviewed") {
+        const last = prev.length - 1
+        const label = e.failed.length
+          ? `Needs changes (${e.failed.join(", ")})`
+          : "All checks passed"
+        return [...prev.slice(0, last), { label, status: e.failed.length ? "warn" : "done" }]
+      }
+      const label =
+        e.step === "generate"
+          ? "Writing the first draft"
+          : e.step === "review"
+            ? "Running human, freelancer and client checks"
+            : e.step === "revise"
+              ? "Rewriting with reviewer feedback"
+              : "Saving"
+      return [...done, { label, status: "active" }]
+    })
+  }
 
   async function generateProposal() {
     setGenerating(true)
+    setSteps([])
     try {
       const res = await fetch("/api/ai/generate-proposal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ proposalId: detail.id }),
+        body: JSON.stringify({ proposalId: detail.id, stream: true }),
       })
-      const json = await res.json().catch(() => null)
-      if (!res.ok || !json) throw new Error(json?.error ?? `Generation failed (${res.status})`)
+      let json: Record<string, any> | null = null // eslint-disable-line @typescript-eslint/no-explicit-any
+      if (res.ok && res.body && res.headers.get("content-type")?.includes("ndjson")) {
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
+        const handle = (line: string) => {
+          if (!line.trim()) return
+          const msg = JSON.parse(line)
+          if (msg.type === "progress") onProgress(msg)
+          else if (msg.type === "done") json = msg.result
+          else if (msg.type === "error") throw new Error(msg.error)
+        }
+        for (;;) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split("\n")
+          buffer = lines.pop() ?? ""
+          lines.forEach(handle)
+        }
+        handle(buffer)
+      } else {
+        json = await res.json().catch(() => null)
+        if (!res.ok) throw new Error(json?.error ?? `Generation failed (${res.status})`)
+      }
+      const result = json as Record<string, any> | null // eslint-disable-line @typescript-eslint/no-explicit-any
+      if (!result) throw new Error("Generation failed")
       setDetail((d) => ({
         ...d,
-        cover_letter_generated: json.cover_letter_generated,
-        question_answer: json.question_answer,
-        attachments: json.attachments,
-        last_generated_at: json.last_generated_at,
+        cover_letter_generated: result.cover_letter_generated,
+        question_answer: result.question_answer,
+        attachments: result.attachments,
+        last_generated_at: result.last_generated_at,
         connects_used: d.connects_used,
       }))
       toast.success("Proposal generated")
@@ -181,8 +236,29 @@ export function ProposalDetail({ data }: { data: ProposalDetailData }) {
             <CopyButton text={detail.cover_letter_generated ?? ""} label="Copy cover letter" />
           </div>
         </div>
-        {generating && !detail.cover_letter_generated ? (
-          <p className="text-sm text-muted-foreground">Generating proposal…</p>
+        {generating ? (
+          <ol className="space-y-2 text-sm">
+            {steps.length === 0 ? <li className="text-muted-foreground">Starting…</li> : null}
+            {steps.map((s, i) => (
+              <li
+                key={i}
+                className={cn(
+                  "flex items-center gap-2",
+                  s.status === "active" ? "text-foreground" : "text-muted-foreground",
+                  s.status === "warn" && "text-amber-600 dark:text-amber-400"
+                )}
+              >
+                {s.status === "active" ? (
+                  <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                ) : s.status === "warn" ? (
+                  <RefreshCw className="h-4 w-4 shrink-0" />
+                ) : (
+                  <Check className="h-4 w-4 shrink-0 text-sky-400" />
+                )}
+                {s.label}
+              </li>
+            ))}
+          </ol>
         ) : (
           <p className="whitespace-pre-wrap text-sm text-muted-foreground">
             {detail.cover_letter_generated || "—"}

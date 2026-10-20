@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils"
 import { Pencil } from "lucide-react"
 import { STATUS_STYLES } from "../scanner-format"
 import { StatusToggle } from "./status-toggle"
+import { EditableName } from "./editable-name"
 import { NotificationToggles } from "./notification-toggles"
 
 export interface ScanConfigDetail {
@@ -111,7 +112,7 @@ const scanFailed = config.scan_result ? /fail|error/i.test(config.scan_result) :
             </Link>
           </Button>
         </div>
-        <p className="font-heading text-lg font-semibold">{config.name ?? "Untitled scanner"}</p>
+        <EditableName id={config.id} name={config.name} />
       </div>
 
       {filterChips.length > 0 && (

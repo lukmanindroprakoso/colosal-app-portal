@@ -29,20 +29,34 @@ export default async function JobScannerPage() {
   const last7Days = new Date(startOfToday)
   last7Days.setDate(last7Days.getDate() - 6)
 
-  // Filtered at the DB level: the table has 2000+ rows total, well past
-  // Supabase's default 1000-row response cap, so an unfiltered select here
-  // silently truncates and undercounts.
-  const { data: jobRows } = await supabase
-    .from("upwork_jobs")
-    .select("scan_config_id, inserted_at")
-    .gte("inserted_at", last7Days.toISOString())
+  const last30Days = new Date(startOfToday)
+  last30Days.setDate(last30Days.getDate() - 29)
 
+  // Filtered at the DB level and paged: Supabase caps a response at 1000
+  // rows, and 30 days of jobs can exceed that, so a single select undercounts.
+  const PAGE = 1000
+  const jobRows: { scan_config_id: string | null; inserted_at: string | null }[] = []
+  for (let from = 0; ; from += PAGE) {
+    const { data } = await supabase
+      .from("upwork_jobs")
+      .select("scan_config_id, inserted_at")
+      .gte("inserted_at", last30Days.toISOString())
+      .order("inserted_at", { ascending: false })
+      .range(from, from + PAGE - 1)
+    jobRows.push(...(data ?? []))
+    if ((data?.length ?? 0) < PAGE) break
+  }
+
+  const last30Totals = new Map<string, number>()
   const last7Totals = new Map<string, number>()
   const today = new Map<string, number>()
-  for (const row of jobRows ?? []) {
+  for (const row of jobRows) {
     const id = row.scan_config_id as string
     if (!id) continue
-    last7Totals.set(id, (last7Totals.get(id) ?? 0) + 1)
+    last30Totals.set(id, (last30Totals.get(id) ?? 0) + 1)
+    if (row.inserted_at && new Date(row.inserted_at) >= last7Days) {
+      last7Totals.set(id, (last7Totals.get(id) ?? 0) + 1)
+    }
     if (row.inserted_at && new Date(row.inserted_at) >= startOfToday) {
       today.set(id, (today.get(id) ?? 0) + 1)
     }
@@ -55,6 +69,7 @@ export default async function JobScannerPage() {
       ...c,
       todayCount: today.get(c.id) ?? 0,
       weekCount: last7Totals.get(c.id) ?? 0,
+      monthCount: last30Totals.get(c.id) ?? 0,
     }))
     .sort((a, b) => (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99)) as ScannerItem[]
 

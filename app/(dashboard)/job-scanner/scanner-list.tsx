@@ -20,6 +20,7 @@ export interface ScannerItem {
   last_scan: string | null
   todayCount: number
   weekCount: number
+  monthCount: number
 }
 
 export function ScannerList({ items }: { items: ScannerItem[] }) {
@@ -92,6 +93,11 @@ export function ScannerList({ items }: { items: ScannerItem[] }) {
           <div className="hidden text-center sm:block">
             <p className="text-lg font-semibold">{item.weekCount}</p>
             <p className="text-xs text-muted-foreground">Last 7 days</p>
+          </div>
+
+          <div className="hidden text-center sm:block">
+            <p className="text-lg font-semibold">{item.monthCount}</p>
+            <p className="text-xs text-muted-foreground">Last 30 days</p>
           </div>
 
           <div

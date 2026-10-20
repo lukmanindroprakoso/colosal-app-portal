@@ -21,3 +21,9 @@ export function extJson(req: Request, body: unknown, status = 200) {
 export function extOptions(req: Request) {
   return new NextResponse(null, { status: 204, headers: corsHeaders(req) })
 }
+
+export function extStream(req: Request, stream: ReadableStream) {
+  return new Response(stream, {
+    headers: { ...corsHeaders(req), "Content-Type": "application/x-ndjson", "Cache-Control": "no-store" },
+  })
+}
