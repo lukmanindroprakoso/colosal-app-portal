@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { pageKind } from "../lib/page-kind"
+import { jobIdFromUrl, pageKind } from "../lib/page-kind"
 
 describe("pageKind", () => {
   it("detects a freelancer profile page", () => {
@@ -38,5 +38,21 @@ describe("pageKind", () => {
     expect(pageKind("https://upwork.com.evil.example/jobs/~022109535876375922640")).toBe("outside")
     expect(pageKind("http://www.upwork.com/jobs/~022109535876375922640")).toBe("outside")
     expect(pageKind("not a url")).toBe("outside")
+  })
+})
+
+describe("jobIdFromUrl", () => {
+  it("gives the same id for a job's details page and its apply page", () => {
+    const id = "~022114741854633244792"
+    expect(
+      jobIdFromUrl(`https://www.upwork.com/jobs/${id}?referrer_url_path=%2Fbest-matches%2Fdetails%2F~022109535876375922640`)
+    ).toBe(id)
+    expect(jobIdFromUrl(`https://www.upwork.com/nx/proposals/job/${id}/apply/`)).toBe(id)
+  })
+
+  it("is null off job pages", () => {
+    expect(jobIdFromUrl("https://www.upwork.com/nx/find-work/")).toBeNull()
+    expect(jobIdFromUrl("https://example.com/jobs/~022109535876375922640")).toBeNull()
+    expect(jobIdFromUrl(undefined)).toBeNull()
   })
 })

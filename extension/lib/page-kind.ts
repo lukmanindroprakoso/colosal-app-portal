@@ -16,3 +16,9 @@ export function pageKind(url: string | undefined): PageKind {
   if (/~0\d{15,}/.test(u.pathname)) return "job"
   return "other-upwork"
 }
+
+// The "~0…" id shared by a job's detail page and its apply page; null on any other page.
+export function jobIdFromUrl(url: string | undefined): string | null {
+  if (pageKind(url) !== "job") return null
+  return new URL(url!).pathname.match(/~0\d{15,}/)![0]
+}
