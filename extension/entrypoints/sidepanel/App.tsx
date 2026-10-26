@@ -54,7 +54,7 @@ export default function App() {
   const [tab, setTab] = useState<"proposal" | "profile" | "benchmark">(
     "proposal"
   )
-  const kind = usePageKind()
+  const { kind, jobId } = usePageKind()
 
   // Opening a job, your profile or a freelancer search jumps to the tab that works on it.
   useEffect(() => {
@@ -173,6 +173,7 @@ export default function App() {
             key={epoch}
             templates={auth.templates}
             kind={kind}
+            jobId={jobId}
             onChanged={check}
           />
         ) : tab === "profile" ? (

@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react"
-import { pageKind, type PageKind } from "./page-kind"
+import { jobIdFromUrl, pageKind, type PageKind } from "./page-kind"
 
-// Tracks the active tab's page kind: tab switches, URL changes (Upwork is a SPA), window focus.
-export function usePageKind(): PageKind {
-  const [kind, setKind] = useState<PageKind>("outside")
+// Tracks the active tab's page kind and job id: tab switches, URL changes (Upwork is a SPA), window focus.
+export function usePageKind(): { kind: PageKind; jobId: string | null } {
+  const [page, setPage] = useState<{ kind: PageKind; jobId: string | null }>({
+    kind: "outside",
+    jobId: null,
+  })
 
   useEffect(() => {
     const refresh = async () => {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-      setKind(pageKind(tab?.url))
+      const next = { kind: pageKind(tab?.url), jobId: jobIdFromUrl(tab?.url) }
+      setPage((p) => (p.kind === next.kind && p.jobId === next.jobId ? p : next))
     }
     refresh()
     const onUpdated = (_id: number, info: chrome.tabs.OnUpdatedInfo) => {
@@ -24,5 +28,5 @@ export function usePageKind(): PageKind {
     }
   }, [])
 
-  return kind
+  return page
 }

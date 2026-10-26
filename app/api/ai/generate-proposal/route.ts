@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { chatJson } from "@/lib/ai/sumopod"
-import { HUMAN_STYLE, refineProposal, type Draft, type Progress } from "@/lib/ai/refine"
+import { HUMAN_STYLE, TEMPLATE_RULES, refineProposal, type Draft, type Progress } from "@/lib/ai/refine"
 
 type QA = { question: string; answer: string }
 type GeneratedDraft = Draft & { attachmentIds: string[] }
@@ -73,7 +73,8 @@ export async function POST(request: Request) {
   const systemPrompt = `You are an Upwork proposal assistant. Given a job, a cover letter template, the freelancer's background, and a list of candidate attachments, return ONLY a JSON object with this exact shape:
 {"coverLetter": string, "questionAnswers": [{"question": string, "answer": string}], "attachmentIds": string[]}
 
-Cover letter: rewrite the template, replacing each [prompt]...[/prompt] section with content tailored to the job using the freelancer's background. Keep everything else verbatim. No markers in the output.
+Cover letter: fill in the cover letter template (given in <template> tags) with content tailored to the job, using the freelancer's background. No [prompt] markers in the output.
+${TEMPLATE_RULES}
 Question answers: one entry per screening question listed below, answered using the freelancer's answer knowledge. Empty array if no questions.
 Attachment ids: pick only candidate ids genuinely relevant to this job from the "Candidate attachments" list. Empty array if none fit.
 
@@ -82,9 +83,10 @@ ${HUMAN_STYLE}`
   const userPrompt = `Job title: ${job.title ?? "Untitled"}
 Job description: ${job.description ?? "N/A"}
 
-Cover letter template:
+<template>
 ${template.template}
-${template.ai_instruction ? `\nTemplate instructions: ${template.ai_instruction}` : ""}
+</template>
+${template.ai_instruction ? `<template_instructions>\n${template.ai_instruction}\n</template_instructions>` : ""}
 
 Freelancer background:
 Summary: ${profile?.summary ?? "N/A"}
@@ -152,7 +154,8 @@ ${feedback}
             )
             return { draft: toDraft(r.data), tokens: r.tokens }
           },
-          emit
+          emit,
+          template?.template
         )
         draft = refined.draft
         totalTokenUsed = refined.tokens

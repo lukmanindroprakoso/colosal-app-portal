@@ -1,9 +1,9 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { usePersistentState } from "../../lib/use-persistent-state"
 import { api } from "../../lib/api"
 import { DEFAULT_TEMPLATE } from "../../lib/default-template"
 import { snapshotActiveTab } from "../../lib/page"
-import { pageKind, type PageKind } from "../../lib/page-kind"
+import { jobIdFromUrl, pageKind, type PageKind } from "../../lib/page-kind"
 import { parseJobText } from "../../lib/parse-job"
 import { splitPrompts } from "../../lib/prompt-markers"
 import type {
@@ -14,6 +14,7 @@ import type {
   Template,
   TemplateInput,
 } from "../../lib/types"
+import Collapsible from "./Collapsible"
 import CopyButton from "./CopyButton"
 import PageState from "./PageState"
 import TemplateForm from "./TemplateForm"
@@ -51,26 +52,51 @@ const STEP_MARK = { active: "…", done: "✓", warn: "↻" }
 export default function ProposalTab({
   templates,
   kind,
+  jobId,
   onChanged,
 }: {
   templates: Template[]
   kind: PageKind
+  jobId: string | null
   onChanged: () => Promise<void>
 }) {
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? "")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Each job keeps its own proposal in chrome.storage.local, so it is back whenever that job's
+  // details or apply page is open, even after the browser restarted.
+  const suffix = jobId ?? "none"
   const [result, setResult] = usePersistentState<ProposalResult | null>(
-    "proposal.result",
-    null
+    `proposal.result.${suffix}`,
+    null,
+    "local"
   )
   const [form, setForm] = useState<TemplateInput | null>(null)
   // Job and template the current result was generated for; revisions always refer to these.
   const [generated, setGenerated] = usePersistentState<{
     job: JobData
     templateId: string
-  } | null>("proposal.generated", null)
-  const [feedback, setFeedback] = usePersistentState("proposal.feedback", "")
+  } | null>(`proposal.generated.${suffix}`, null, "local")
+  const [feedback, setFeedback] = usePersistentState(`proposal.feedback.${suffix}`, "", "local")
+  const jobIdRef = useRef(suffix)
+  jobIdRef.current = suffix
+
+  // Saves a finished request under the job it was started for. If the user has since moved to
+  // another job, write straight to storage instead of putting it on screen.
+  function save(
+    id: string,
+    p: { result?: ProposalResult; generated?: { job: JobData; templateId: string }; feedback?: string }
+  ) {
+    if (id !== jobIdRef.current) {
+      void chrome.storage.local.set(
+        Object.fromEntries(Object.entries(p).map(([k, v]) => [`proposal.${k}.${id}`, v]))
+      )
+      return
+    }
+    if (p.result) setResult(p.result)
+    if (p.generated) setGenerated(p.generated)
+    if (p.feedback !== undefined) setFeedback(p.feedback)
+  }
   const [refining, setRefining] = useState(false)
   const [steps, setSteps] = useState<Step[]>([])
   const onProgress = (e: ProposalProgress) => setSteps((s) => nextSteps(s, e))
@@ -78,7 +104,7 @@ export default function ProposalTab({
   // Templates can refresh after mount (panel focus re-check); keep the selection valid.
   const current = templates.find((t) => t.id === templateId) ?? templates[0]
 
-  // Generating needs a job page; a result you already have stays visible on any page (e.g. the apply form).
+  // Generating needs a job page; the job's saved result shows on its details and apply pages.
   const onJob = kind === "job"
 
   if (form && onJob) {
@@ -105,12 +131,9 @@ export default function ProposalTab({
       const snap = await snapshotActiveTab()
       if (!snap || pageKind(snap.url) !== "job")
         throw new Error("Open a job details page on Upwork first.")
+      const id = jobIdFromUrl(snap.url) ?? "none"
       const job = parseJobText(snap.title, snap.text)
       const r = await api.proposal(job, current.id, onProgress)
-      if (r.ok) {
-        setGenerated({ job, templateId: current.id })
-        setFeedback("")
-      }
       if (!r.ok) {
         throw new Error(
           r.status === "unauth"
@@ -118,7 +141,11 @@ export default function ProposalTab({
             : r.message
         )
       }
-      setResult(r.data)
+      save(id, {
+        result: r.data,
+        generated: { job, templateId: current.id },
+        feedback: "",
+      })
     } catch (e) {
       setError(
         e instanceof Error
@@ -133,6 +160,7 @@ export default function ProposalTab({
   // With feedback: revise the visible draft. Without: a fresh version for the same job and template.
   async function regenerate() {
     if (!generated || !result) return
+    const id = suffix
     setRefining(true)
     setError(null)
     setSteps([])
@@ -154,12 +182,14 @@ export default function ProposalTab({
               ? "Session expired. Sign in to Colosal again."
               : r.message
           )
-        setResult({
-          ...result,
-          coverLetter: r.data.coverLetter,
-          questionAnswers: r.data.questionAnswers,
+        save(id, {
+          result: {
+            ...result,
+            coverLetter: r.data.coverLetter,
+            questionAnswers: r.data.questionAnswers,
+          },
+          feedback: "",
         })
-        setFeedback("")
       } else {
         const r = await api.proposal(generated.job, generated.templateId, onProgress)
         if (!r.ok)
@@ -168,7 +198,7 @@ export default function ProposalTab({
               ? "Session expired. Sign in to Colosal again."
               : r.message
           )
-        setResult(r.data)
+        save(id, { result: r.data })
       }
     } catch (e) {
       setError(
@@ -208,23 +238,26 @@ export default function ProposalTab({
           </select>
 
           <section className="card preview">
-            <div className="row">
-              <h3>Preview</h3>
-              <button
-                className="link"
-                onClick={() =>
-                  setForm({
-                    id: current.id,
-                    name: current.name ?? "",
-                    template: current.template,
-                    ai_instruction: current.ai_instruction,
-                  })
-                }
-                disabled={busy}
-              >
-                Edit
-              </button>
-            </div>
+            <Collapsible
+              title="Preview"
+              defaultOpen={false}
+              actions={
+                <button
+                  className="link"
+                  onClick={() =>
+                    setForm({
+                      id: current.id,
+                      name: current.name ?? "",
+                      template: current.template,
+                      ai_instruction: current.ai_instruction,
+                    })
+                  }
+                  disabled={busy}
+                >
+                  Edit
+                </button>
+              }
+            >
             <pre>
               {splitPrompts(current.template).map((p, i) =>
                 p.prompt ? (
@@ -241,16 +274,52 @@ export default function ProposalTab({
                 <strong>AI instruction:</strong> {current.ai_instruction}
               </p>
             )}
+            </Collapsible>
           </section>
 
-          <button
-            className="btn"
-            style={{ marginTop: 12 }}
-            onClick={generate}
-            disabled={busy || refining}
-          >
-            {busy ? "Generating proposal..." : "Generate proposal"}
-          </button>
+          {result && (
+            <section className="card">
+              <h3>Refine</h3>
+              <label className="field">
+                <span className="visually-hidden">
+                  Describe the changes you want
+                </span>
+                <textarea
+                  rows={3}
+                  maxLength={2000}
+                  value={feedback}
+                  placeholder="Describe the changes you want, e.g. make it shorter and mention my Next.js experience"
+                  onChange={(e) => setFeedback(e.target.value)}
+                  disabled={refining}
+                />
+                <span className="hint">
+                  Leave empty to generate a fresh version.
+                </span>
+              </label>
+              <button
+                className="btn"
+                onClick={regenerate}
+                disabled={refining || busy}
+              >
+                {refining
+                  ? "Regenerating..."
+                  : feedback.trim()
+                    ? "Apply changes"
+                    : "Regenerate"}
+              </button>
+            </section>
+          )}
+
+          {!result && (
+            <button
+              className="btn"
+              style={{ marginTop: 12 }}
+              onClick={generate}
+              disabled={busy || refining}
+            >
+              {busy ? "Generating proposal..." : "Generate proposal"}
+            </button>
+          )}
         </>
       ) : onJob ? (
         <>
@@ -267,8 +336,8 @@ export default function ProposalTab({
           title="Job details page required"
           text={
             kind === "outside"
-              ? "Go to Upwork and open a job details page to generate a proposal. Your latest result stays below."
-              : "Open a job details page on Upwork to generate a proposal. Your latest result stays below."
+              ? "Go to Upwork and open a job details page to generate a proposal. Proposals you generated reappear on their job page."
+              : "Open a job details page on Upwork to generate a proposal. Proposals you generated reappear on their job page."
           }
         />
       )}
@@ -289,32 +358,29 @@ export default function ProposalTab({
             <p className="muted small">Generated for: {generated.job.title}</p>
           )}
           <section className="card">
-            <div className="row">
-              <h3>Cover Letter</h3>
-              <CopyButton text={result.coverLetter} />
-            </div>
-            <pre>{result.coverLetter}</pre>
+            <Collapsible title="Cover Letter" actions={<CopyButton text={result.coverLetter} />}>
+              <pre>{result.coverLetter}</pre>
+            </Collapsible>
           </section>
 
           <section className="card">
-            <h3>Question Answers</h3>
-            {result.questionAnswers.length === 0 ? (
-              <p className="muted">This job has no screening questions.</p>
-            ) : (
-              result.questionAnswers.map((a, i) => (
-                <div key={i} className="qa">
-                  <div className="row">
-                    <strong>{a.question}</strong>
-                    <CopyButton text={a.answer} />
+            <Collapsible title="Question Answers" defaultOpen={false}>
+              {result.questionAnswers.length === 0 ? (
+                <p className="muted">This job has no screening questions.</p>
+              ) : (
+                result.questionAnswers.map((a, i) => (
+                  <div key={i} className="qa">
+                    <Collapsible title={a.question} defaultOpen={false} actions={<CopyButton text={a.answer} />}>
+                      <pre>{a.answer}</pre>
+                    </Collapsible>
                   </div>
-                  <pre>{a.answer}</pre>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </Collapsible>
           </section>
 
           <section className="card">
-            <h3>Confidence Level</h3>
+            <Collapsible title="Confidence Level" defaultOpen={false}>
             <div className="score">
               {result.confidence.score === null
                 ? "-"
@@ -331,37 +397,7 @@ export default function ProposalTab({
                 </li>
               ))}
             </ul>
-          </section>
-
-          <section className="card">
-            <h3>Refine</h3>
-            <label className="field">
-              <span className="visually-hidden">
-                Describe the changes you want
-              </span>
-              <textarea
-                rows={3}
-                maxLength={2000}
-                value={feedback}
-                placeholder="Describe the changes you want, e.g. make it shorter and mention my Next.js experience"
-                onChange={(e) => setFeedback(e.target.value)}
-                disabled={refining}
-              />
-              <span className="hint">
-                Leave empty to generate a fresh version.
-              </span>
-            </label>
-            <button
-              className="btn"
-              onClick={regenerate}
-              disabled={refining || busy}
-            >
-              {refining
-                ? "Regenerating..."
-                : feedback.trim()
-                  ? "Apply changes"
-                  : "Regenerate"}
-            </button>
+            </Collapsible>
           </section>
         </>
       )}
